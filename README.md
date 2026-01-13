@@ -131,13 +131,23 @@ This script **assumes you understand Fedora** and want a **clean, correct setup*
 
 ### 1️⃣ Clone the repository
 ```bash
-git clone https://github.com/<your-username>/fedora-43-post-install.git
+git clone https://github.com/Kk376/fedora-43-post-install.git
 cd fedora-43-post-install
+```
 
 ### 2️⃣ Make the script executable
 ```bash
 chmod +x setup.sh
+```
 
-### 3️⃣ Run it
+### 3️⃣ Run the script
 ```bash
 ./setup.sh
+```
+
+You will be prompted before each major step.
+
+---
+
+Built and maintained by **Kushagra Kumar**.
+
