@@ -3,9 +3,43 @@
 # Fedora 43 Post-Install Setup Script
 # Author: Kushagra Kumar
 # Automates DevTools + Gaming on Fedora 43
+# Version: 2.0
 # ==============================================================================
 
 set -euo pipefail
+
+# ==============================================================================
+# Configuration & Flags
+# ==============================================================================
+DRY_RUN=false
+BACKUP_DIR="$HOME/.config/fedora-setup-backups/$(date +%Y%m%d_%H%M%S)"
+LOG_FILE="/tmp/fedora-setup-$(date +%Y%m%d_%H%M%S).log"
+SCRIPT_VERSION="2.0"
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --dry-run|-n)
+            DRY_RUN=true
+            shift
+            ;;
+        --help|-h)
+            echo "Fedora 43 Post-Install Setup Script v${SCRIPT_VERSION}"
+            echo ""
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --dry-run, -n    Preview changes without executing"
+            echo "  --help, -h       Show this help message"
+            echo ""
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
 
 # Colors
 GREEN='\033[0;32m'
@@ -13,14 +47,19 @@ BLUE='\033[0;34m'
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
+MAGENTA='\033[0;35m'
 NC='\033[0m'
 
-# Logging
+# Enable logging to file
+exec > >(tee -a "$LOG_FILE") 2>&1
+
+# Logging functions
 log() { echo -e "${BLUE}[SETUP]${NC} $1"; }
 success() { echo -e "${GREEN}[OK]${NC} $1"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 error() { echo -e "${RED}[ERROR]${NC} $1"; }
 info() { echo -e "${CYAN}[INFO]${NC} $1"; }
+dry() { echo -e "${MAGENTA}[DRY-RUN]${NC} Would execute: $1"; }
 
 # Progress tracking
 COMPLETED_STEPS=0
@@ -32,9 +71,110 @@ step_complete() {
     echo -e "\n${GREEN}[${COMPLETED_STEPS}/${TOTAL_STEPS}]${NC} $1"
 }
 
+# ==============================================================================
+# Enhanced Helper Functions
+# ==============================================================================
+
+# Execute command (or dry-run)
+run() {
+    if $DRY_RUN; then
+        dry "$*"
+        return 0
+    else
+        "$@"
+    fi
+}
+
+# Execute sudo command (or dry-run)
+run_sudo() {
+    if $DRY_RUN; then
+        dry "sudo $*"
+        return 0
+    else
+        sudo "$@"
+    fi
+}
+
+# Backup a file before modifying
+backup_file() {
+    local file="$1"
+    if [[ -f "$file" ]]; then
+        mkdir -p "$BACKUP_DIR"
+        local backup_name=$(basename "$file").backup
+        cp "$file" "$BACKUP_DIR/$backup_name"
+        info "Backed up: $file → $BACKUP_DIR/$backup_name"
+    fi
+}
+
+# Restore backups
+restore_backups() {
+    local latest_backup=$(ls -td ~/.config/fedora-setup-backups/*/ 2>/dev/null | head -1)
+    if [[ -z "$latest_backup" ]]; then
+        warn "No backups found"
+        return 1
+    fi
+    
+    log "Latest backup: $latest_backup"
+    if confirm "Restore all files from this backup?" "N"; then
+        for backup_file in "$latest_backup"/*; do
+            local filename=$(basename "$backup_file" .backup)
+            local original_paths=(
+                "$HOME/.zshrc"
+                "$HOME/.bashrc"
+                "/etc/dnf/dnf.conf"
+                "$HOME/.config/MangoHud/MangoHud.conf"
+            )
+            for orig in "${original_paths[@]}"; do
+                if [[ "$(basename "$orig")" == "$filename" ]]; then
+                    if $DRY_RUN; then
+                        dry "cp $backup_file $orig"
+                    else
+                        sudo cp "$backup_file" "$orig" 2>/dev/null || cp "$backup_file" "$orig"
+                        success "Restored: $orig"
+                    fi
+                    break
+                fi
+            done
+        done
+    fi
+}
+
+# Check if package is installed and get version
+check_version() {
+    local pkg="$1"
+    if rpm -q "$pkg" &>/dev/null; then
+        local ver=$(rpm -q --queryformat '%{VERSION}' "$pkg" 2>/dev/null)
+        echo "$ver"
+        return 0
+    elif command -v "$pkg" &>/dev/null; then
+        local ver=$("$pkg" --version 2>/dev/null | head -1 || echo "installed")
+        echo "$ver"
+        return 0
+    fi
+    return 1
+}
+
+# Validate step completion
+validate_step() {
+    local step_name="$1"
+    local check_cmd="$2"
+    
+    if eval "$check_cmd" &>/dev/null; then
+        success "Validated: $step_name"
+        return 0
+    else
+        warn "Validation failed: $step_name"
+        return 1
+    fi
+}
+
 # Confirmation prompt
 confirm() {
     local prompt="$1" default="${2:-N}" yn
+    if $DRY_RUN; then
+        dry "Prompt: $prompt (auto-yes in dry-run)"
+        return 0
+    fi
     [[ "$default" == "Y" ]] && read -p "$prompt (Y/n): " -n 1 -r yn || read -p "$prompt (y/N): " -n 1 -r yn
     echo
     [[ "$default" == "Y" ]] && { [[ -z "$yn" ]] || [[ "$yn" =~ ^[Yy]$ ]]; } || [[ "$yn" =~ ^[Yy]$ ]]
@@ -50,9 +190,28 @@ check_existing_config() {
     grep -q "^${2}=" "$1" 2>/dev/null
 }
 
+# Show installed versions
+show_versions() {
+    log "Checking installed versions..."
+    echo ""
+    local packages=("zsh" "brave-browser" "code" "antigravity" "docker" "tlp" "steam" "ffmpeg")
+    for pkg in "${packages[@]}"; do
+        local ver=$(check_version "$pkg" 2>/dev/null)
+        if [[ -n "$ver" ]]; then
+            echo "  ✅ $pkg: $ver"
+        else
+            echo "  ❌ $pkg: not installed"
+        fi
+    done
+    echo ""
+}
+
 # Sudo check and keep-alive
-sudo -v || { error "Requires sudo"; exit 1; }
-while true; do sudo -n true; sleep 60; kill -0 "$$" 2>/dev/null || exit; done &
+if ! $DRY_RUN; then
+    sudo -v || { error "Requires sudo"; exit 1; }
+    while true; do sudo -n true; sleep 60; kill -0 "$$" 2>/dev/null || exit; done &
+fi
+
 
 # ==============================================================================
 # 1. DNF Configuration
@@ -60,24 +219,35 @@ while true; do sudo -n true; sleep 60; kill -0 "$$" 2>/dev/null || exit; done &
 setup_dnf() {
     log "Configuring DNF..."
     
+    # Backup config before modifying
+    backup_file "/etc/dnf/dnf.conf"
+    
     # Remove existing entries to prevent duplicates
     if check_existing_config "/etc/dnf/dnf.conf" "fastestmirror"; then
-        sudo sed -i '/^fastestmirror=/d; /^max_parallel_downloads=/d; /^keepcache=/d; /^defaultyes=/d' /etc/dnf/dnf.conf
+        run_sudo sed -i '/^fastestmirror=/d; /^max_parallel_downloads=/d; /^keepcache=/d; /^defaultyes=/d' /etc/dnf/dnf.conf
     fi
     
-    sudo tee -a /etc/dnf/dnf.conf > /dev/null <<EOF
+    if ! $DRY_RUN; then
+        sudo tee -a /etc/dnf/dnf.conf > /dev/null <<EOF
 fastestmirror=True
 max_parallel_downloads=10
-keepcache=True
+keepache=True
 EOF
-    confirm "Enable defaultyes (auto-confirm)?" "N" && echo "defaultyes=True" | sudo tee -a /etc/dnf/dnf.conf > /dev/null
+    else
+        dry "Add fastestmirror, max_parallel_downloads, keepcache to dnf.conf"
+    fi
+    confirm "Enable defaultyes (auto-confirm)?" "N" && echo "defaultyes=True" | run_sudo tee -a /etc/dnf/dnf.conf > /dev/null
     
     log "Enabling RPM Fusion & Flathub..."
-    sudo dnf install -y https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
+    run_sudo dnf install -y https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
         https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
-    flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo 2>/dev/null || true
+    run flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo 2>/dev/null || true
     
-    sudo dnf update -y --refresh
+    run_sudo dnf update -y --refresh
+    
+    # Validation
+    validate_step "DNF config" "grep -q fastestmirror /etc/dnf/dnf.conf"
+    
     step_complete "DNF configured"
 }
 
@@ -152,21 +322,26 @@ setup_nosleep() {
 # ==============================================================================
 setup_shell() {
     log "Installing ZSH..."
-    sudo dnf install -y zsh curl git fontconfig
+    run_sudo dnf install -y zsh curl git fontconfig
     
-    [[ ! -d "$HOME/.oh-my-zsh" ]] && sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+    if ! $DRY_RUN; then
+        [[ ! -d "$HOME/.oh-my-zsh" ]] && sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+        
+        run git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k 2>/dev/null || true
+        run git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions 2>/dev/null || true
+        run git clone https://github.com/zsh-users/zsh-syntax-highlighting ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting 2>/dev/null || true
+    else
+        dry "Install Oh My ZSH, Powerlevel10k, plugins"
+    fi
     
-    git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k 2>/dev/null || true
-    git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions 2>/dev/null || true
-    git clone https://github.com/zsh-users/zsh-syntax-highlighting ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting 2>/dev/null || true
+    # Backup .zshrc using backup system
+    backup_file "$HOME/.zshrc"
     
-    # Backup .zshrc
-    [[ -f ~/.zshrc ]] && cp ~/.zshrc ~/.zshrc.backup.$(date +%Y%m%d_%H%M%S) && info "Backed up .zshrc"
-    
-    sed -i 's/ZSH_THEME=.*/ZSH_THEME="powerlevel10k\/powerlevel10k"/' ~/.zshrc 2>/dev/null || echo 'ZSH_THEME="powerlevel10k/powerlevel10k"' >> ~/.zshrc
-    sed -i 's/^plugins=(.*)/plugins=(git zsh-autosuggestions zsh-syntax-highlighting)/' ~/.zshrc 2>/dev/null || echo 'plugins=(git zsh-autosuggestions zsh-syntax-highlighting)' >> ~/.zshrc
-    
-    cat >> ~/.zshrc <<'EOF'
+    if ! $DRY_RUN; then
+        sed -i 's/ZSH_THEME=.*/ZSH_THEME="powerlevel10k\/powerlevel10k"/' ~/.zshrc 2>/dev/null || echo 'ZSH_THEME="powerlevel10k/powerlevel10k"' >> ~/.zshrc
+        sed -i 's/^plugins=(.*)/plugins=(git zsh-autosuggestions zsh-syntax-highlighting)/' ~/.zshrc 2>/dev/null || echo 'plugins=(git zsh-autosuggestions zsh-syntax-highlighting)' >> ~/.zshrc
+        
+        cat >> ~/.zshrc <<'EOF'
 
 # --- Custom Configs ---
 ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=#8a8a8a"
@@ -178,8 +353,16 @@ command -v bat >/dev/null 2>&1 && alias cat='bat --paging=never --style=plain'
 command -v eza >/dev/null 2>&1 && alias ls='eza --group-directories-first --classify --icons --git'
 
 EOF
+    else
+        dry "Configure .zshrc with theme and plugins"
+    fi
     
-    confirm "Set ZSH as default shell?" "Y" && chsh -s $(which zsh)
+    confirm "Set ZSH as default shell?" "Y" && run chsh -s $(which zsh)
+    
+    # Validation
+    validate_step "ZSH installed" "command -v zsh"
+    validate_step "Oh My ZSH" "test -d $HOME/.oh-my-zsh"
+    
     step_complete "Shell configured"
 }
 
@@ -367,7 +550,7 @@ setup_packages() {
     sudo dnf install -y --skip-unavailable gcc clang fastfetch make cmake perl wmctrl cargo maven bat \
         java-latest-openjdk java-latest-openjdk-devel nodejs python3 python3-pip wget htop unzip unrar \
         p7zip p7zip-plugins ntfs-3g gparted timeshift alsa-plugins-pulseaudio vlc docker steam mangohud \
-        discord telegram-desktop vim nvim android-tools libva-utils gstreamer1-plugin-openh264
+        discord telegram-desktop vim nvim gh android-tools libva-utils gstreamer1-plugin-openh264
     
     # Steam H264 unlock (fixes some games)
     log "Unlocking Steam H264 codec..."
@@ -646,15 +829,35 @@ cleanup() {
 # Main
 # ==============================================================================
 main() {
-    if ! check_network; then
-        error "No internet connection. Exiting."
-        exit 1
+    # Show mode indicator
+    if $DRY_RUN; then
+        echo -e "${MAGENTA}========================================${NC}"
+        echo -e "${MAGENTA}   DRY-RUN MODE - No changes will be made${NC}"
+        echo -e "${MAGENTA}========================================${NC}"
+        echo ""
     fi
     
     echo -e "${GREEN}========================================${NC}"
-    echo -e "${GREEN}   Fedora 43 Post-Install Setup        ${NC}"
+    echo -e "${GREEN}   Fedora 43 Post-Install Setup v${SCRIPT_VERSION}${NC}"
     echo -e "${GREEN}========================================${NC}"
     info "Started at $(date)"
+    info "Log file: $LOG_FILE"
+    echo ""
+    
+    # Pre-flight menu
+    if confirm "Show currently installed versions?" "N"; then
+        show_versions
+    fi
+    
+    if confirm "Restore from previous backup?" "N"; then
+        restore_backups
+        return 0
+    fi
+    
+    if ! $DRY_RUN && ! check_network; then
+        error "No internet connection. Exiting."
+        exit 1
+    fi
     
     local steps=(
         "setup_dnf:DNF Configuration"
@@ -691,8 +894,18 @@ main() {
         fi
     done
     
-    cleanup
+    if ! $DRY_RUN; then
+        cleanup
+    fi
+    
     show_summary
+    
+    # Final info
+    echo ""
+    info "Full log saved to: $LOG_FILE"
+    if [[ -d "$BACKUP_DIR" ]]; then
+        info "Config backups saved to: $BACKUP_DIR"
+    fi
 }
 
 trap 'echo -e "\n${RED}Interrupted${NC}"; exit 1' INT
