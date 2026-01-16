@@ -33,6 +33,20 @@ This script is built from **years of real-world Fedora usage**, focusing on:
 - 🔹 **Clean logging & progress tracking**
 - 🔹 **Modular** – each task is isolated and readable
 
+## What’s New in v2.0
+
+Version 2.0 introduces safety, predictability, and reversibility.
+
+### New Capabilities
+- **Backup & Restore** – Automatically backs up existing configurations and allows rollback
+- **Dry-Run Mode** – Preview all actions without modifying the system
+- **Logging** – Full execution log written to file for debugging
+- **Version Awareness** – Skips already-installed or correctly configured components
+- **Validation** – Verifies system state after each major step
+
+These changes make the script suitable for cautious users and repeat executions.
+
+
 ---
 
 ## Who This Script Is For
