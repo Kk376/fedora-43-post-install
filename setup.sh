@@ -231,7 +231,7 @@ setup_dnf() {
         sudo tee -a /etc/dnf/dnf.conf > /dev/null <<EOF
 fastestmirror=True
 max_parallel_downloads=10
-keepache=True
+keepcache=True
 EOF
     else
         dry "Add fastestmirror, max_parallel_downloads, keepcache to dnf.conf"
