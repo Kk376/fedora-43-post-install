@@ -6,6 +6,20 @@ This project follows semantic versioning: **MAJOR.MINOR.PATCH**
 
 ---
 
+## [v2.0.2] – 2026-01-16
+
+### Added
+- Explicitly enabled `fedora-cisco-openh264` repository to ensure OpenH264 availability
+
+---
+
+## [v2.0.1] – 2026-01-16
+
+### Fixed
+- Fix typo: keepcache in dnf.conf
+
+---
+
 ## [v2.0.0] – 2026-01-16
 
 ### Added
