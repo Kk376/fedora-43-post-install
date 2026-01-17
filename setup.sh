@@ -551,6 +551,8 @@ setup_packages() {
         java-latest-openjdk java-latest-openjdk-devel nodejs python3 python3-pip wget htop unzip unrar \
         p7zip p7zip-plugins ntfs-3g gparted timeshift alsa-plugins-pulseaudio vlc docker steam mangohud \
         discord telegram-desktop vim nvim gh android-tools libva-utils gstreamer1-plugin-openh264
+
+    sudo dnf config-manager setopt fedora-cisco-openh264.enabled=1
     
     # Steam H264 unlock (fixes some games)
     log "Unlocking Steam H264 codec..."
