@@ -28,24 +28,62 @@ This script is built from **years of real-world Fedora usage**, focusing on:
   - Hybrid (Optimus) awareness
 - 🔹 **Secure Boot–aware NVIDIA setup**
 - 🔹 **Idempotent**
-  - Prevents duplicate configs
-  - Skips already-installed components
+  - State file tracks completed steps
+  - Resume after interruption
+  - `--force` to re-run steps
+- 🔹 **Profile-based installation**
 - 🔹 **Clean logging & progress tracking**
 - 🔹 **Modular** – each task is isolated and readable
 
-## What’s New in v2.0
+---
 
-Version 2.0 introduces safety, predictability, and reversibility.
+## What's New in v3.0
 
-### New Capabilities
-- **Backup & Restore** – Automatically backs up existing configurations and allows rollback
-- **Dry-Run Mode** – Preview all actions without modifying the system
-- **Logging** – Full execution log written to file for debugging
-- **Version Awareness** – Skips already-installed or correctly configured components
-- **Validation** – Verifies system state after each major step
+- **Profile System** – `--profile=minimal|dev|gaming|full`
+- **State File** – Tracks completed steps, enables resume
+- **Force Flag** – `--force` to re-run completed steps
+- **DNS Choice** – Google, Cloudflare, or skip (default: skip)
+- **TLP Opt-in** – Clear warning about GNOME power profiles impact
 
-These changes make the script suitable for cautious users and repeat executions.
+### Improved Safety
 
+- **NVIDIA flow** – `akmods --force` before MOK enrollment
+- **DNF config** – Idempotent block markers
+- **Dry-run mode** – Skips interactive steps, no state changes
+- **GPU detection** – More specific pattern avoids false positives
+
+---
+
+## Usage
+
+```bash
+# Basic usage (full profile, interactive)
+./setup.sh
+
+# Preview without changes
+./setup.sh --dry-run
+
+# Minimal install (DNF, fonts, shell only)
+./setup.sh --profile=minimal
+
+# Developer setup
+./setup.sh --profile=dev
+
+# Gaming setup
+./setup.sh --profile=gaming
+
+# Re-run completed steps
+./setup.sh --force
+```
+
+### Available Profiles
+
+| Profile   | Steps Included                                       |
+| --------- | ---------------------------------------------------- |
+| `minimal` | DNF, fonts, shell                                    |
+| `dev`     | Minimal + dev tools, Docker, Antigravity, Gemini CLI |
+| `gaming`  | Minimal + drivers, packages, MangoHud, Flatpaks      |
+| `full`    | All 20 steps (default)                               |
 
 ---
 
@@ -55,8 +93,8 @@ These changes make the script suitable for cautious users and repeat executions.
 ✅ Developers  
 ✅ Gamers  
 ✅ Laptop users who care about battery life  
-❌ Beginners who don’t want to read prompts  
-❌ Blind “one-click” installers  
+❌ Beginners who don't want to read prompts  
+❌ Blind "one-click" installers
 
 This script **assumes you understand Fedora** and want a **clean, correct setup**, not magic.
 
@@ -84,39 +122,43 @@ This script **assumes you understand Fedora** and want a **clean, correct setup*
 ## What the Script Installs & Configures
 
 ### Core System
-- DNF optimizations
+
+- DNF optimizations (idempotent block markers)
 - RPM Fusion & Flathub
-- Google DNS (IPv4 + IPv6)
+- DNS (optional: Google/Cloudflare)
 - No-random-sleep (GDM + user)
 - System fonts + Nerd Fonts
 
 ### Power & Performance
-- TLP (with delayed boot fix)
+
+- TLP (optional, with GNOME PPD warning)
 - preload
 - ccache (50GB, compressed)
 
 ### Shell & UX
-- ZSH
-- Oh My Zsh
-- Powerlevel10k
-- zsh-autosuggestions
-- zsh-syntax-highlighting
+
+- ZSH + Oh My Zsh + Powerlevel10k
+- zsh-autosuggestions / zsh-syntax-highlighting
 - eza, bat aliases
 
 ### Multimedia & Browsers
+
 - Brave Browser
 - FFmpeg (freeworld)
 - VA-API / NVENC support
 - OpenH264
 
 ### GPU Drivers
+
 - Intel media driver
-- AMD freeworld VA/VDAU
+- AMD freeworld VA/VDPAU
 - NVIDIA proprietary drivers
+  - `akmods --force` before MOK enrollment
   - Secure Boot key generation
   - Interactive MOK enrollment guidance
 
 ### Development
+
 - GCC / Clang / LLVM
 - Java, Node.js, Python
 - Docker + Corepack
@@ -125,16 +167,19 @@ This script **assumes you understand Fedora** and want a **clean, correct setup*
 - Debuggers, profilers, build systems
 
 ### Gaming
+
 - Steam + H.264 unlock
 - MangoHud (preconfigured)
 - ProtonPlus
 
 ### Cloud & AI
+
 - Cloudflare Warp
 - LM Studio (AppImage integration)
 - Gemini CLI
 
 ### GNOME Tools
+
 - GNOME Tweaks
 - Extension Manager
 - Extension recommendations (manual install)
@@ -144,17 +189,20 @@ This script **assumes you understand Fedora** and want a **clean, correct setup*
 ## How to Use
 
 ### 1️⃣ Clone the repository
+
 ```bash
 git clone https://github.com/Kk376/fedora-43-post-install.git
 cd fedora-43-post-install
 ```
 
 ### 2️⃣ Make the script executable
+
 ```bash
 chmod +x setup.sh
 ```
 
 ### 3️⃣ Run the script
+
 ```bash
 ./setup.sh
 ```
@@ -164,4 +212,3 @@ You will be prompted before each major step.
 ---
 
 Built and maintained by **Kushagra Kumar**.
-

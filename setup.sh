@@ -2,8 +2,8 @@
 # ==============================================================================
 # Fedora 43 Post-Install Setup Script
 # Author: Kushagra Kumar
-# Automates DevTools + Gaming on Fedora 43
-# Version: 2.0
+# Automates DevTools + Gaming + Multimedia on Fedora 43
+# Version: 3.0
 # ==============================================================================
 
 set -euo pipefail
@@ -14,7 +14,10 @@ set -euo pipefail
 DRY_RUN=false
 BACKUP_DIR="$HOME/.config/fedora-setup-backups/$(date +%Y%m%d_%H%M%S)"
 LOG_FILE="/tmp/fedora-setup-$(date +%Y%m%d_%H%M%S).log"
-SCRIPT_VERSION="2.0"
+SCRIPT_VERSION="3.0"
+PROFILE="full"
+FORCE_RERUN=false
+STATE_FILE="$HOME/.config/fedora-setup/state.txt"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -23,14 +26,32 @@ while [[ $# -gt 0 ]]; do
             DRY_RUN=true
             shift
             ;;
+        --profile=*)
+            PROFILE="${1#*=}"
+            shift
+            ;;
+        --profile)
+            PROFILE="$2"
+            shift 2
+            ;;
+        --force|-f)
+            FORCE_RERUN=true
+            shift
+            ;;
         --help|-h)
             echo "Fedora 43 Post-Install Setup Script v${SCRIPT_VERSION}"
             echo ""
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  --dry-run, -n    Preview changes without executing"
-            echo "  --help, -h       Show this help message"
+            echo "  --dry-run, -n          Preview changes without executing"
+            echo "  --profile=PROFILE      Choose setup profile:"
+            echo "                           minimal - DNF, fonts, shell only"
+            echo "                           dev     - Minimal + dev tools, Docker, Antigravity"
+            echo "                           gaming  - Minimal + drivers, packages, MangoHud"
+            echo "                           full    - All steps (default)"
+            echo "  --force, -f            Re-run completed steps"
+            echo "  --help, -h             Show this help message"
             echo ""
             exit 0
             ;;
@@ -40,6 +61,12 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# Validate profile
+case "$PROFILE" in
+    minimal|dev|gaming|full) ;;
+    *) echo "Unknown profile: $PROFILE (use minimal, dev, gaming, or full)"; exit 1 ;;
+esac
 
 # Colors
 GREEN='\033[0;32m'
@@ -67,7 +94,6 @@ TOTAL_STEPS=20
 START_TIME=$(date +%s)
 
 step_complete() {
-    COMPLETED_STEPS=$((COMPLETED_STEPS + 1))
     echo -e "\n${GREEN}[${COMPLETED_STEPS}/${TOTAL_STEPS}]${NC} $1"
 }
 
@@ -136,6 +162,11 @@ restore_backups() {
                 fi
             done
         done
+        # Reset state file after restore to prevent stale state
+        if ! $DRY_RUN; then
+            rm -f "$STATE_FILE"
+            warn "State reset due to restore - all steps will re-run"
+        fi
     fi
 }
 
@@ -168,6 +199,33 @@ validate_step() {
     fi
 }
 
+# ==============================================================================
+# State File Functions (Idempotency)
+# ==============================================================================
+init_state() {
+    mkdir -p "$(dirname "$STATE_FILE")"
+    [[ -f "$STATE_FILE" ]] || touch "$STATE_FILE"
+}
+
+is_step_completed() {
+    local step="$1"
+    [[ -f "$STATE_FILE" ]] && grep -qx "$step" "$STATE_FILE"
+}
+
+mark_step_completed() {
+    local step="$1"
+    if ! is_step_completed "$step"; then
+        echo "$step" >> "$STATE_FILE"
+    fi
+}
+
+reset_state() {
+    if confirm "Clear all completed step records?" "N"; then
+        rm -f "$STATE_FILE"
+        success "State cleared - all steps will re-run"
+    fi
+}
+
 # Confirmation prompt
 confirm() {
     local prompt="$1" default="${2:-N}" yn
@@ -183,11 +241,6 @@ confirm() {
 # Network check
 check_network() {
     ping -c 1 -W 2 8.8.8.8 &>/dev/null || ping -c 1 -W 2 1.1.1.1 &>/dev/null
-}
-
-# Check existing DNF config to prevent duplicates
-check_existing_config() {
-    grep -q "^${2}=" "$1" 2>/dev/null
 }
 
 # Show installed versions
@@ -222,56 +275,104 @@ setup_dnf() {
     # Backup config before modifying
     backup_file "/etc/dnf/dnf.conf"
     
-    # Remove existing entries to prevent duplicates
-    if check_existing_config "/etc/dnf/dnf.conf" "fastestmirror"; then
-        run_sudo sed -i '/^fastestmirror=/d; /^max_parallel_downloads=/d; /^keepcache=/d; /^defaultyes=/d' /etc/dnf/dnf.conf
-    fi
-    
+    # Use idempotent block markers - remove old block if exists, then add fresh
     if ! $DRY_RUN; then
+        sudo sed -i '/^# BEGIN fedora-setup$/,/^# END fedora-setup$/d' /etc/dnf/dnf.conf
+        
+        local dnf_opts="fastestmirror=True\nmax_parallel_downloads=10\nkeepcache=True"
+        confirm "Enable defaultyes (auto-confirm)?" "N" && dnf_opts+="\ndefaultyes=True"
+        
         sudo tee -a /etc/dnf/dnf.conf > /dev/null <<EOF
-fastestmirror=True
-max_parallel_downloads=10
-keepcache=True
+# BEGIN fedora-setup
+$(echo -e "$dnf_opts")
+# END fedora-setup
 EOF
     else
-        dry "Add fastestmirror, max_parallel_downloads, keepcache to dnf.conf"
+        dry "Add fedora-setup block to dnf.conf (idempotent)"
     fi
-    confirm "Enable defaultyes (auto-confirm)?" "N" && echo "defaultyes=True" | run_sudo tee -a /etc/dnf/dnf.conf > /dev/null
     
     log "Enabling RPM Fusion & Flathub..."
     run_sudo dnf install -y https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
         https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
-    run flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo 2>/dev/null || true
+    run flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo 2>/dev/null || warn "Flathub already configured or failed"
     
     run_sudo dnf update -y --refresh
     
     # Validation
-    validate_step "DNF config" "grep -q fastestmirror /etc/dnf/dnf.conf"
+    validate_step "DNF config" "grep -q '# BEGIN fedora-setup' /etc/dnf/dnf.conf"
     
     step_complete "DNF configured"
 }
 
 # ==============================================================================
-# 2. Google DNS
+# 2. DNS Configuration
 # ==============================================================================
 setup_dns() {
-    log "Configuring Google DNS..."
+    # Dry-run safety: DNS changes are interactive and can't be simulated
+    if $DRY_RUN; then
+        dry "DNS configuration (interactive step skipped in dry-run)"
+        step_complete "DNS (dry-run)"
+        return 0
+    fi
+    
+    warn "⚠️  DNS Configuration Warning"
+    echo "This will override auto DNS for ALL active connections."
+    echo "Risks:"
+    echo "  • May break corporate/campus networks"
+    echo "  • May break VPN split DNS"
+    echo "  • May break DNS-over-TLS/DNSSEC setups"
+    echo ""
+    echo "DNS Options:"
+    echo "  1. Google DNS (8.8.8.8, 8.8.4.4)"
+    echo "  2. Cloudflare DNS (1.1.1.1, 1.0.0.1)"
+    echo "  3. Skip (keep current DNS)"
+    echo ""
+    
+    local dns_choice DNS_IPV4 DNS_IPV6 DNS_NAME
+    read -p "Choose DNS provider [1/2/3] (default: 3): " -n 1 dns_choice
+    echo ""
+    
+    case "$dns_choice" in
+        1) DNS_IPV4="8.8.8.8 8.8.4.4"; DNS_IPV6="2001:4860:4860::8888 2001:4860:4860::8844"; DNS_NAME="Google" ;;
+        2) DNS_IPV4="1.1.1.1 1.0.0.1"; DNS_IPV6="2606:4700:4700::1111 2606:4700:4700::1001"; DNS_NAME="Cloudflare" ;;
+        *) info "Keeping current DNS settings"; step_complete "DNS (skipped)"; return 0 ;;
+    esac
+    
+    log "Configuring $DNS_NAME DNS..."
     local conns
     conns=$(nmcli -t -f NAME connection show --active 2>/dev/null || true)
     while IFS= read -r conn; do
         [[ -z "$conn" ]] && continue
+        # Skip virtual/bridge interfaces (docker, loopback, libvirt, veth, bridge)
+        if [[ "$conn" =~ ^(docker|lo|virbr|veth|br-) ]]; then
+            info "Skipping virtual interface: $conn"
+            continue
+        fi
         log "Setting DNS for: $conn"
-        nmcli connection modify "$conn" ipv4.ignore-auto-dns yes ipv4.dns "8.8.8.8 8.8.4.4" 2>/dev/null || true
-        nmcli connection modify "$conn" ipv6.ignore-auto-dns yes ipv6.dns "2001:4860:4860::8888 2001:4860:4860::8844" 2>/dev/null || true
-        nmcli connection down "$conn" 2>/dev/null; sleep 1; nmcli connection up "$conn" 2>/dev/null || true
+        nmcli connection modify "$conn" ipv4.ignore-auto-dns yes ipv4.dns "$DNS_IPV4" 2>/dev/null || warn "Failed to set IPv4 DNS for $conn"
+        nmcli connection modify "$conn" ipv6.ignore-auto-dns yes ipv6.dns "$DNS_IPV6" 2>/dev/null || warn "Failed to set IPv6 DNS for $conn"
+        nmcli connection down "$conn" 2>/dev/null; sleep 1; nmcli connection up "$conn" 2>/dev/null || warn "Failed to restart $conn"
     done <<< "$conns"
-    step_complete "Google DNS configured"
+    step_complete "$DNS_NAME DNS configured"
 }
 
 # ==============================================================================
 # 3. Power Management (TLP)
 # ==============================================================================
 setup_power() {
+    warn "⚠️  TLP vs GNOME Power Profiles"
+    echo "TLP provides fine-grained power control but:"
+    echo "  • Disables GNOME's built-in power profiles UI"
+    echo "  • Some AMD laptops work better with power-profiles-daemon"
+    echo "  • Fedora upstream now prefers power-profiles-daemon"
+    echo ""
+    
+    if ! confirm "Use TLP instead of GNOME power profiles?" "N"; then
+        info "Keeping GNOME power-profiles-daemon (no changes made)"
+        step_complete "Power management (default)"
+        return 0
+    fi
+    
     log "Installing TLP..."
     sudo dnf install -y tlp tlp-rdw
     sudo systemctl enable tlp.service
@@ -371,8 +472,14 @@ EOF
 # ==============================================================================
 setup_browser_multimedia() {
     log "Installing Brave & multimedia..."
+    
+    # Validate RPM Fusion is installed (required for multimedia)
+    if ! rpm -q rpmfusion-free-release &>/dev/null; then
+        warn "RPM Fusion may not be installed correctly - multimedia packages may fail"
+    fi
+    
     sudo dnf install -y dnf-plugins-core
-    sudo dnf config-manager addrepo --from-repofile=https://brave-browser-rpm-release.s3.brave.com/brave-browser.repo
+    sudo dnf config-manager addrepo --from-repofile=https://brave-browser-rpm-release.s3.brave.com/brave-browser.repo --overwrite 2>/dev/null || true
     sudo dnf install -y brave-browser mozilla-openh264
     
     sudo dnf swap -y ffmpeg-free ffmpeg --allowerasing
@@ -388,9 +495,10 @@ setup_drivers() {
     log "Detecting Hardware..."
     
     CHASSIS=$(hostnamectl chassis 2>/dev/null || echo "unknown")
-    GPU_NVIDIA=$(lspci | grep -i "nvidia" || true)
-    GPU_AMD=$(lspci | grep -i "amd" | grep -i "vga" || true)
-    GPU_INTEL=$(lspci | grep -i "intel" | grep -i "vga" || true)
+    # More specific GPU detection to avoid false positives
+    GPU_NVIDIA=$(lspci | grep -Ei 'VGA|3D|Display' | grep -i nvidia || true)
+    GPU_AMD=$(lspci | grep -Ei 'VGA|3D|Display' | grep -i amd || true)
+    GPU_INTEL=$(lspci | grep -Ei 'VGA|3D|Display' | grep -i intel || true)
     
     log "Detected Chassis: $CHASSIS"
     
@@ -413,6 +521,16 @@ setup_drivers() {
         
         # Common Nvidia Packages
         sudo dnf install -y kmodtool akmods mokutil openssl nvtop akmod-nvidia xorg-x11-drv-nvidia-cuda libva-nvidia-driver
+        
+        # Force build and verify modules before MOK enrollment
+        log "Building NVIDIA kernel modules (this may take a few minutes)..."
+        sudo akmods --force
+        
+        if modinfo nvidia &>/dev/null; then
+            success "NVIDIA module built successfully"
+        else
+            warn "NVIDIA module not yet available - may require reboot after MOK enrollment"
+        fi
         
         if [[ "$CHASSIS" == "laptop" || "$CHASSIS" == "notebook" || "$CHASSIS" == "convertible" ]]; then
             log "Laptop detected. Checking for Optimus/Hybrid setup..."
@@ -475,6 +593,7 @@ setup_copr() {
     sudo dnf copr enable -y terjeros/eza && sudo dnf install -y eza || true
     sudo dnf copr enable -y zeno/scrcpy && sudo dnf install -y scrcpy || true
     sudo dnf copr enable -y lihaohong/yazi && sudo dnf install -y yazi file ffmpeg 7zip jq poppler fd rg fzf zoxide resvg xclip wl-clipboard xsel ImageMagick || true
+    sudo dnf copr enable -y derisis13/ani-cli && sudo dnf install -y mpv ani-cli || true
     step_complete "COPR packages installed"
 }
 
@@ -508,7 +627,7 @@ setup_fonts() {
 setup_warp() {
     log "Installing Cloudflare Warp..."
     sudo dnf install -y sassc glib2-devel libxml2 glibc-devel
-    sudo dnf config-manager addrepo --from-repofile=https://pkg.cloudflareclient.com/cloudflare-warp-ascii.repo
+    sudo dnf config-manager addrepo --from-repofile=https://pkg.cloudflareclient.com/cloudflare-warp-ascii.repo --overwrite 2>/dev/null || true
     sudo dnf install -y cloudflare-warp
     
     # Only register if not already registered
@@ -549,7 +668,7 @@ setup_packages() {
     log "Installing essential packages..."
     sudo dnf install -y --skip-unavailable gcc clang fastfetch make cmake perl wmctrl cargo maven bat \
         java-latest-openjdk java-latest-openjdk-devel nodejs python3 python3-pip wget htop unzip unrar \
-        p7zip p7zip-plugins ntfs-3g gparted timeshift alsa-plugins-pulseaudio vlc docker steam mangohud \
+        p7zip p7zip-plugins ntfs-3g gparted timeshift vlc docker steam mangohud \
         discord telegram-desktop vim nvim gh android-tools libva-utils gstreamer1-plugin-openh264
 
     sudo dnf config-manager setopt fedora-cisco-openh264.enabled=1
@@ -698,15 +817,40 @@ setup_flatpaks() {
 # ==============================================================================
 setup_docker() {
     log "Configuring Docker..."
+    
+    # Check if docker is installed first
+    if ! rpm -q moby-engine &>/dev/null && ! rpm -q docker-ce &>/dev/null; then
+        warn "Docker (moby-engine/docker-ce) not installed - skipping configuration"
+        step_complete "Docker (not installed)"
+        return 0
+    fi
+    
     sudo usermod -aG docker $USER
-    sudo systemctl enable --now docker
+    
+    # Enable and start docker with proper error handling
+    sudo systemctl enable docker 2>/dev/null || true
+    
+    # Check if docker socket/service conflicts exist
+    if sudo systemctl is-failed docker &>/dev/null; then
+        warn "Docker service in failed state - attempting reset"
+        sudo systemctl reset-failed docker 2>/dev/null || true
+    fi
+    
+    # Start docker if not already running
+    if ! sudo systemctl is-active --quiet docker; then
+        sudo systemctl start docker 2>/dev/null || true
+        sleep 2
+    fi
     
     if sudo systemctl is-active --quiet docker; then
         success "Docker running"
         # Note: docker test requires logout/login for group membership
         info "After reboot, verify with: docker run --rm hello-world"
     else
-        warn "Docker failed to start"
+        warn "Docker failed to start - check: sudo systemctl status docker"
+        info "Common fixes:"
+        info "  • Reboot and try again"
+        info "  • Check: sudo journalctl -u docker --no-pager -n 20"
     fi
     
     # Corepack setup
@@ -863,7 +1007,7 @@ main() {
     
     local steps=(
         "setup_dnf:DNF Configuration"
-        "setup_dns:Google DNS"
+        "setup_dns:DNS Configuration"
         "setup_power:Power Management"
         "setup_nosleep:No-Sleep Settings"
         "setup_fonts:System Fonts"
@@ -884,19 +1028,65 @@ main() {
         "setup_gemini:Gemini CLI"
     )
     
+    # Define profile step filters
+    local -A PROFILE_STEPS
+    PROFILE_STEPS[minimal]="setup_dnf setup_fonts setup_shell"
+    PROFILE_STEPS[dev]="setup_dnf setup_fonts setup_shell setup_dev setup_docker setup_antigravity setup_gemini"
+    PROFILE_STEPS[gaming]="setup_dnf setup_fonts setup_shell setup_drivers setup_packages setup_mangohud setup_flatpaks setup_browser_multimedia"
+    PROFILE_STEPS[full]=""  # Empty means all steps
+    
+    info "Profile: $PROFILE"
+    [[ -n "${PROFILE_STEPS[$PROFILE]}" ]] && info "Running steps: ${PROFILE_STEPS[$PROFILE]}"
+    echo ""
+    
+    # Initialize state file
+    init_state
+    
+    # Calculate TOTAL_STEPS dynamically based on profile
+    TOTAL_STEPS=0
+    for step in "${steps[@]}"; do
+        IFS=':' read -r func _ <<< "$step"
+        [[ -n "${PROFILE_STEPS[$PROFILE]}" ]] && [[ ! " ${PROFILE_STEPS[$PROFILE]} " =~ " $func " ]] && continue
+        TOTAL_STEPS=$((TOTAL_STEPS + 1))
+    done
+    
     for step in "${steps[@]}"; do
         IFS=':' read -r func name <<< "$step"
+        
+        # Check if step is in profile (skip if not in filtered profile)
+        if [[ -n "${PROFILE_STEPS[$PROFILE]}" ]] && [[ ! " ${PROFILE_STEPS[$PROFILE]} " =~ " $func " ]]; then
+            continue  # Skip step not in profile
+        fi
+        
+        # Check if step was already completed (idempotency)
+        if is_step_completed "$func" && ! $FORCE_RERUN; then
+            info "Already completed: $name (use --force to re-run)"
+            COMPLETED_STEPS=$((COMPLETED_STEPS + 1))
+            continue
+        fi
+        
         echo ""
         echo -e "${BLUE}Step: $name${NC}"
         if confirm "Run this step?" "Y"; then
-            $func && success "$name completed" || warn "$name had issues"
+            if $func; then
+                success "$name completed"
+                # Only update state and increment counter in non-dry-run mode
+                if ! $DRY_RUN; then
+                    mark_step_completed "$func"
+                    COMPLETED_STEPS=$((COMPLETED_STEPS + 1))
+                fi
+            else
+                warn "$name had issues"
+                $DRY_RUN || COMPLETED_STEPS=$((COMPLETED_STEPS + 1))
+            fi
         else
             warn "Skipped: $name"
-            COMPLETED_STEPS=$((COMPLETED_STEPS + 1))
+            $DRY_RUN || COMPLETED_STEPS=$((COMPLETED_STEPS + 1))
         fi
     done
     
-    if ! $DRY_RUN; then
+    # Cleanup respects profile (only run for full profile)
+    if ! $DRY_RUN && [[ "$PROFILE" == "full" ]]; then
         cleanup
     fi
     
