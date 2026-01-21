@@ -6,6 +6,42 @@ This project follows semantic versioning: **MAJOR.MINOR.PATCH**
 
 ---
 
+## [v4.0.0] – 2026-01-21
+
+### Added
+
+- **New profiles** – `workstation` (Dev + Virtualization + Office) and `creator` (Gaming + Multimedia + AI tools)
+- **Emergency rollback system** – Automatic service stopping and recovery guidance on script failure
+- **Disk space protection** – Checks for minimum 20GB before installation, with interactive warning
+- **KVM/QEMU Virtualization** – Complete setup module with modern socket activation (`virtqemud.socket`)
+- **Atomic DNF operations** – Version pinning (`best=True`) and safer repository installation
+- **Enhanced safety** – Network checks, disk space validation, emergency traps
+
+### Improved
+
+- **DNF configuration** – Added `best=True` for version pinning, atomic RPM Fusion installation
+- **Profile system** – More logical segmentation with workstation/creator profiles
+- **Error handling** – State file preserved on error for resumption
+- **User experience** – Better progress tracking and validation messages
+- **Virtualization setup** – Modern libvirt socket activation instead of legacy service
+- **Documentation** – Updated README with new features and troubleshooting guide
+
+### Fixed
+
+- **Dry-run state counting** – Progress counter now works correctly in dry-run mode
+- **Service management** – Proper stopping of services during emergency rollback
+- **Permission handling** – Better user group management for Docker and libvirt
+- **Profile step filters** – Correct step inclusion for new profiles
+
+### Security
+
+- **Rollback protection** – Stops potentially dangerous services on failure
+- **Resource validation** – Prevents installation on low disk space
+- **Network dependency** – Validates internet before remote operations
+- **Service isolation** – Proper firewall and NetworkManager configuration
+
+---
+
 ## [v3.0.0] – 2026-01-17
 
 ### Added
