@@ -650,7 +650,7 @@ setup_drivers() {
 setup_copr() {
     log "Installing COPR packages..."
     run_sudo dnf copr enable -y elxreno/preload && run_sudo dnf install -y preload || true
-    run_sudo dnf copr enable -y terjeros/eza && run_sudo dnf install -y eza || true
+    run_sudo dnf copr enable -y alternateved/eza && run_sudo dnf install -y eza || true
     run_sudo dnf copr enable -y zeno/scrcpy && run_sudo dnf install -y scrcpy || true
     run_sudo dnf copr enable -y lihaohong/yazi && run_sudo dnf install -y yazi file ffmpeg 7zip jq poppler fd rg fzf zoxide resvg xclip wl-clipboard xsel ImageMagick || true
     run_sudo dnf copr enable -y derisis13/ani-cli && run_sudo dnf install -y mpv ani-cli || true
