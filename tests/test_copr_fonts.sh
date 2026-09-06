@@ -265,6 +265,7 @@ github_download() { ((REAL_EXEC_COUNT++)); return 0; }
 fc-cache() { ((REAL_EXEC_COUNT++)); return 0; }
 mkdir() { ((REAL_EXEC_COUNT++)); return 0; }
 unzip() { ((REAL_EXEC_COUNT++)); return 0; }
+tar() { ((REAL_EXEC_COUNT++)); return 0; }
 
 $func_code
 
@@ -280,6 +281,7 @@ assert_contains "Dry-run logs DNF font install" "DRY: sudo dnf install -y --skip
 assert_contains "Dry-run logs msttcore-fonts curl download" "DRY: curl -sLO https://downloads.sourceforge.net/project/mscorefonts2/rpms/msttcore-fonts-installer-2.6-1.noarch.rpm" "$dry_run_out"
 assert_contains "Dry-run logs msttcore-fonts verification and rpm installation" "verify_checksum" "$dry_run_out"
 assert_contains "Dry-run logs FiraCode Nerd Font download/install" "DRY: Download and install FiraCode Nerd Font" "$dry_run_out"
+assert_contains "Dry-run logs Symbols Nerd Font download/install" "DRY: Download and install Symbols Nerd Font and 10-nerd-font-symbols.conf fontconfig" "$dry_run_out"
 assert_contains "Dry-run logs fc-cache -fv" "DRY: fc-cache -fv" "$dry_run_out"
 
 # Test DRY_RUN=false execution flow (mocked tools)
@@ -298,6 +300,7 @@ run() { echo "RUN: \$*"; }
 run_sudo() { echo "SUDO: \$*"; }
 mkdir() { echo "MKDIR: \$*"; }
 unzip() { echo "UNZIP: \$*"; }
+tar() { echo "TAR: \$*"; }
 rm() { echo "RM: \$*"; }
 fc-cache() { echo "FC-CACHE: \$*"; }
 verify_checksum() { return 0; }
@@ -318,6 +321,8 @@ assert_contains "Live mode creates font directory ~/.local/share/fonts" "MKDIR: 
 assert_contains "Live mode downloads FiraCode" "GH_DOWNLOAD: repo=ryanoasis/nerd-fonts pattern=FiraCode\\.zip output=/tmp/FiraCode.zip" "$live_exec_out"
 assert_contains "Live mode unzips font archive" "UNZIP: -oq /tmp/FiraCode.zip -d $HOME/.local/share/fonts/" "$live_exec_out"
 assert_contains "Live mode removes temporary zip" "RM: -f /tmp/FiraCode.zip" "$live_exec_out"
+assert_contains "Live mode downloads Symbols Nerd Font" "GH_DOWNLOAD: repo=ryanoasis/nerd-fonts pattern=NerdFontsSymbolsOnly\\.tar\\.xz" "$live_exec_out"
+assert_contains "Live mode signals Symbols Nerd Font success" "SUCCESS: Symbols Nerd Font and fontconfig rules installed" "$live_exec_out"
 assert_contains "Live mode executes fc-cache -fv" "FC-CACHE: -fv" "$live_exec_out"
 assert_contains "Live mode signals FiraCode success" "SUCCESS: FiraCode Nerd Font installed" "$live_exec_out"
 assert_contains "Live mode finishes font setup step" "STEP: Fonts installed" "$live_exec_out"
@@ -337,6 +342,8 @@ step_complete() { echo "STEP: \$1"; }
 run() { :; }
 run_sudo() { :; }
 mkdir() { :; }
+tar() { :; }
+rm() { :; }
 fc-cache() { echo "FC-CACHE: \$*"; }
 verify_checksum() { return 0; }
 
@@ -350,6 +357,7 @@ EOF
 
 fail_exec_out=$(test_fonts_download_failure "$fonts_func_code")
 assert_contains "FiraCode download failure issues warning" "WARN: Failed to download FiraCode Nerd Font" "$fail_exec_out"
+assert_contains "Symbols Nerd Font download failure issues warning" "WARN: Failed to download Symbols Nerd Font" "$fail_exec_out"
 assert_contains "FiraCode download failure displays manual URL info" "INFO: Manual download: https://github.com/ryanoasis/nerd-fonts/releases" "$fail_exec_out"
 assert_contains "fc-cache -fv still runs to refresh system fonts when FiraCode fails" "FC-CACHE: -fv" "$fail_exec_out"
 assert_contains "Font step completes even if optional FiraCode download fails" "STEP: Fonts installed" "$fail_exec_out"

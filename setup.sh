@@ -496,6 +496,18 @@ EOF
 
     run_sudo dnf update -y --refresh --setopt=best=True
 
+    log "Configuring sudo password feedback (asterisks)..."
+    if ! $DRY_RUN; then
+        run_sudo mkdir -p /etc/sudoers.d
+        run_sudo tee /etc/sudoers.d/pwfeedback > /dev/null <<'EOF'
+Defaults pwfeedback
+EOF
+        run_sudo chmod 0440 /etc/sudoers.d/pwfeedback
+        success "Sudo password feedback configured (/etc/sudoers.d/pwfeedback)"
+    else
+        dry "Configure sudo pwfeedback in /etc/sudoers.d/pwfeedback"
+    fi
+
     step_complete "DNF configured"
 }
 
@@ -876,7 +888,9 @@ export MANPAGER=cat
 export BAT_PAGER=""
 export DELTA_PAGER=cat
 export LESS="-F -X -R"
-export PATH="$HOME/.local/bin:$PATH"
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$HOME/.opencode/bin:$PATH"
+export LIBVIRT_DEFAULT_URI="qemu:///system"
+export SUDO_PROMPT="[sudo] 🔒 password for %u: "
 
 # ===== NVM =====
 export NVM_DIR="$HOME/.nvm"
@@ -948,6 +962,7 @@ export BAT_PAGER=""
 export DELTA_PAGER=cat
 export LESS="-F -X -R"
 export PATH="$HOME/.local/bin:$PATH"
+export SUDO_PROMPT="[sudo] 🔒 password for %u: "
 
 # ===== Starship (ALWAYS LAST) =====
 eval "$(starship init zsh)"
@@ -965,6 +980,7 @@ export MANPAGER=cat
 export BAT_PAGER=""
 export DELTA_PAGER=cat
 export LESS="-F -X -R"
+export SUDO_PROMPT="[sudo] 🔒 password for %u: "
 alias ls='eza --group-directories-first --classify --icons --git'
 alias cat='bat --paging=never --style=plain'
 eval "$(starship init bash)"
@@ -991,9 +1007,10 @@ set -gx BAT_PAGER ""
 set -gx DELTA_PAGER cat
 set -gx LESS "-F -X -R"
 set -gx LIBVIRT_DEFAULT_URI "qemu:///system"
+set -gx SUDO_PROMPT "[sudo] 🔒 password for %u: "
 
 # Add personal bin paths
-fish_add_path -m $HOME/.local/bin $HOME/.cargo/bin
+fish_add_path -m $HOME/.local/bin $HOME/.cargo/bin $HOME/.opencode/bin
 
 # ===== Aliases =====
 alias clear 'printf "\033[2J\033[3J\033[H"'
@@ -1101,9 +1118,12 @@ bold_italic_font auto
 font_size        12
 disable_ligatures never
 
+# --- Nerd Fonts Symbols (Ghostty-equivalent universal glyphs) ---
+symbol_map U+E5FA-U+E6B7,U+E700-U+E8EF,U+ED00-U+EFCE,U+F000-U+F2FF,U+F300-U+F381,U+F400-U+F533,U+EA60-U+EC1E,U+E000-U+E00A,U+E0A0-U+E0A2,U+E0B0-U+E0B3,U+E0A3,U+E0B4-U+E0C8,U+E0CA,U+E0CC-U+E0D7,U+E200-U+E2A9,U+E300-U+E3E3,U+F0001-U+F1AF0,U+23FB-U+23FE,U+2B58,U+2665,U+26A1 Symbols Nerd Font Mono
+
 # --- Translucency & Styling ---
 background_opacity         0.97
-background_blur            95
+background_blur            97
 dynamic_background_opacity yes
 window_padding_width       14 16
 hide_window_decorations    no
@@ -1152,7 +1172,7 @@ map ctrl+l combine : clear_terminal scroll active : send_text normal,application
 
 # --- Audio & Shell ---
 enable_audio_bell no
-shell .
+shell fish
 
 # --- Tokyo Night Color Scheme ---
 background #1a1b26
@@ -1210,8 +1230,6 @@ KITTY_CONF
     else
         info "Skipping KKFetch installation"
     fi
-
-    confirm "Set ZSH as default shell?" "Y" && run chsh -s "$(command -v zsh)"
 
     step_complete "Shell configured"
 }
@@ -1509,6 +1527,25 @@ setup_fonts() {
         dry "Download and install FiraCode Nerd Font"
         dry "fc-cache -fv"
         dry "Configure FiraCode Nerd Font in GNOME desktop and Ptyxis terminal"
+    fi
+
+    log "Downloading Symbols Nerd Font (universal glyphs & fontconfig)..."
+    if ! $DRY_RUN; then
+        mkdir -p ~/.local/share/fonts/NerdFonts ~/.config/fontconfig/conf.d
+        if github_download "ryanoasis/nerd-fonts" "NerdFontsSymbolsOnly\\.tar\\.xz" "/tmp/NerdFontsSymbolsOnly.tar.xz" \
+            "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/NerdFontsSymbolsOnly.tar.xz"; then
+            tar -xf /tmp/NerdFontsSymbolsOnly.tar.xz -C ~/.local/share/fonts/NerdFonts/ SymbolsNerdFont-Regular.ttf SymbolsNerdFontMono-Regular.ttf 2>/dev/null || \
+                tar -xf /tmp/NerdFontsSymbolsOnly.tar.xz -C ~/.local/share/fonts/NerdFonts/ 2>/dev/null || true
+            tar -xf /tmp/NerdFontsSymbolsOnly.tar.xz -C ~/.config/fontconfig/conf.d/ 10-nerd-font-symbols.conf 2>/dev/null || true
+            rm -f /tmp/NerdFontsSymbolsOnly.tar.xz
+            success "Symbols Nerd Font and fontconfig rules installed"
+        else
+            warn "Failed to download Symbols Nerd Font"
+            info "Manual download: https://github.com/ryanoasis/nerd-fonts/releases"
+        fi
+        fc-cache -fv 2>/dev/null || true
+    else
+        dry "Download and install Symbols Nerd Font and 10-nerd-font-symbols.conf fontconfig"
     fi
 
     step_complete "Fonts installed"
