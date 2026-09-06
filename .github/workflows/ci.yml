@@ -5,6 +5,14 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   lint:
@@ -18,7 +26,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y shellcheck
 
       - name: Run ShellCheck
-        run: shellcheck -e SC1091 setup.sh tests/*.sh
+        run: make lint
 
   test:
     name: Test Suite
@@ -27,8 +35,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Make scripts executable
-        run: chmod +x setup.sh tests/*.sh
-
       - name: Run test suite
-        run: ./tests/run_tests.sh
+        run: make test
+
