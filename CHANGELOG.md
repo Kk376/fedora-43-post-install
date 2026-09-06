@@ -4,6 +4,42 @@ All notable changes to this project will be documented in this file.
 
 Follows semantic versioning: MAJOR.MINOR.PATCH
 
+## [v5.5.0] – 2026-09-07
+
+### Added
+
+- **Dev Profile Genres (`--dev-type=GENRE`)**:
+  - `systems`: C, C++, Rust toolchain (rustup, clippy, rust-analyzer), CMake, Meson, Ninja, GDB, Valgrind, Hyperfine
+  - `web`: Node.js runtime, Corepack package manager integration (pnpm, yarn), Python 3, Docker, jq
+  - `android`: `android-tools` (ADB/Fastboot), Scrcpy device mirror, Java OpenJDK latest & devel, Maven, Android Studio (Flathub), KVM virtualization permissions
+  - `ai`: Python 3 development headers, virtualenv, wheel, Ruff linter/formatter, and **Hardware-Gated NVIDIA CUDA Failsafe**
+  - `all`: Comprehensive developer stack (default)
+  - Supports CLI flag `--dev-type=GENRE` (comma-separated or single) and interactive prompt
+- **Hardware-Gated NVIDIA CUDA Failsafe**: Probes PCI hardware via `lspci`; if NVIDIA GPU is detected, prompts for CUDA development packages; if AMD or Intel GPU is detected, safely skips with informational notice explaining vendor-specific acceleration (e.g. AMD ROCm)
+- **Personal Profile (`--profile=personal`)**: Dedicated 17-step profile isolating author's bespoke workflow (PostgreSQL 18 server daemon, pgAdmin 4 desktop, 50GB ccache, dpkg-dev, X11 dev headers, kkfetch) from the public `full` profile
+- **Host Asset Integration**:
+  - `akmod-v4l2loopback`: Integrated in `creator`, `full`, and `personal` profiles for OBS Studio virtual camera functionality
+  - `gnome-shell-extension-appindicator`: Added to GNOME setup for system tray icon support
+  - `gamemode`: Added to `gaming`, `full`, and `personal` profiles
+  - `kk376/kkfetch`: Added to COPR repositories (`setup_copr`)
+  - `plocate`, `tree`, `compsize`: Added to base package suite
+- **Fish Shell & Autosuggestion Contrast Polish**: Full Fish shell deployment alongside ZSH and Bash in `setup_shell`, featuring Starship prompt, FZF keybindings, custom aliases, and tuned `#828bb8` autosuggestion styling
+
+### Changed
+
+- **Purged Mission Center**: Completely eradicated `io.missioncenter.MissionCenter` (which causes PCIe bus lockups and GPU sleep freezes on MUXless hybrid GPU laptops). Replaced with GNOME Extension Manager (`com.mattjakeman.ExtensionManager`).
+- **Orthogonal Profile Matrix**:
+  - `minimal` (7 steps): Unchanged core base
+  - `workstation` (11 steps): Removed Steam, MangoHud, and KVM for clean productivity desktop
+  - `creator` (11 steps): Focused on OBS Studio, V4L2 loopback, GStreamer, and NV Broadcast (removed KVM)
+  - `gaming` (11 steps): Pinned to Steam, MangoHud, GameMode, ProtonPlus, Vesktop
+  - `dev` (16 steps): Developer tools with genre filtering, Flatpaks (Android Studio), Docker, KVM
+  - `full` (17 steps): Complete public power-user superset
+  - `personal` (17 steps): Full suite + author's bespoke PostgreSQL 18, 50GB ccache, kkfetch, dpkg-dev
+- **Gated Gaming Flatpaks**: ProtonPlus (`com.vysp3r.ProtonPlus`) is strictly gated on gaming-capable profiles (`gaming`, `full`, `personal`)
+
+---
+
 ## [v5.4.0] – 2026-09-01
 
 ### Added

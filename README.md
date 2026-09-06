@@ -22,12 +22,26 @@ Built from years of actual Fedora usage, covering the things I find myself setti
 
 ---
 
-## What's New in v5.4.0
+## What's New in v5.5.0
 
-- **COPR & Debian Packaging Isolation:** Confined COPR repository setup (`setup_copr`) and Debian packaging tooling (`dpkg-dev`) strictly to the `full` profile, keeping `creator`, `dev`, and `workstation` profiles lean and repository-isolated.
-- **Android ROM & Multilib Stack Removal:** Removed obsolete Android ROM / AOSP / Kernel development tools (`schedtool`, `lzop`, `pngcrush`, `squashfs-tools`, `gperf`, `sdl12-compat-devel`) and 32-bit multilib libraries (`glibc-devel.i686`, `libstdc++-devel.i686`, `zlib-ng-compat-devel.i686`, `libX11-devel.i686`, `readline-devel.i686`, `ncurses-devel.i686`), while retaining `android-tools` (ADB/Fastboot) for device communication.
-- **Interactive Utility Prompts with Decision Guidance:** Added interactive prompts with short descriptions and clear recommendations ("Should you install it?") for niche desktop, media, and hardware utilities (Vesktop, Stirling-PDF, NVIDIA Broadcast for Linux, Scrcpy, Yazi, and VirtIO Windows VM drivers).
-- **Security & Integrity:** Added `verify_checksum()` SHA256 integrity helper, shallow `--depth 1` repository clones, hardened Zed worktree security, and updated 6/6 test suites.
+- **Purge Mission Center & Hardware Freeze Elimination:** Completely eradicated `io.missioncenter.MissionCenter` (which triggers PCIe bus stalls and GPU sleep lockups on MUXless hybrid GPU laptops). Replaced with GNOME Extension Manager (`com.mattjakeman.ExtensionManager`).
+- **Dev Profile Genres (`--dev-type`):** Modularized the `dev` profile into focused developer genres:
+  - `systems`: C, C++, Rust toolchain, CMake, Meson, Ninja, GDB, Valgrind, Hyperfine.
+  - `web`: Node.js, Corepack (pnpm/yarn), Python 3, Docker, jq.
+  - `android`: `android-tools` (ADB/Fastboot), Scrcpy, Java JDK/Devel, Maven, Android Studio (Flathub), KVM acceleration.
+  - `ai`: Python 3 Devel, virtualenv, Ruff, and **Hardware-Gated NVIDIA CUDA Failsafe** (hardware-probed via `lspci`; safely skipped on AMD/Intel systems).
+  - `all`: Comprehensive developer stack (default).
+- **Personal Profile Isolation (`--profile=personal`):** Separated author's bespoke workflow (PostgreSQL 18 server daemon, pgAdmin 4, 50GB ccache, dpkg-dev, X11 dev headers, kkfetch) from the public `full` profile.
+- **Orthogonal Profile Matrix:**
+  - `minimal` (7 steps): Base optimizations, DNS, fonts, shell, browser/codecs, GPU drivers.
+  - `workstation` (11 steps): Productivity desktop, Flatpaks, GPU drivers (no Steam, no compilers, no KVM).
+  - `creator` (11 steps): OBS Studio, `akmod-v4l2loopback` (virtual camera), GStreamer, NV Broadcast, Flatpaks, GPU drivers.
+  - `gaming` (11 steps): Steam, MangoHud, GameMode (`gamemode`), ProtonPlus, Vesktop, Flatpaks, GPU drivers.
+  - `dev` (16 steps): Full dev environment + genre selection, Docker, KVM, Flatpaks (Android Studio), Code Editor.
+  - `full` (17 steps): Complete public power-user superset (workstation + dev + gaming + creator).
+  - `personal` (17 steps): Full suite + author's bespoke PostgreSQL 18, 50GB ccache, kkfetch, dpkg-dev.
+- **Fish Shell & Autosuggestion Polish:** First-class Fish shell integration alongside ZSH and Bash in `setup_shell`, featuring tuned `#828bb8` autosuggestion contrast and Starship prompt.
+- **Discovered Host Essentials:** Integrated `gnome-shell-extension-appindicator` for GNOME tray icons, `gamemode` for gaming, `akmod-v4l2loopback` for creators, and `plocate`, `tree`, `compsize` in CLI essentials.
 
 See [CHANGELOG.md](CHANGELOG.md) for the full history.
 
@@ -48,6 +62,15 @@ See [CHANGELOG.md](CHANGELOG.md) for the full history.
 ./setup.sh --profile=gaming
 ./setup.sh --profile=workstation
 ./setup.sh --profile=creator
+./setup.sh --profile=full
+./setup.sh --profile=personal
+
+# Select dev genres with dev profile
+./setup.sh --profile=dev --dev-type=systems
+./setup.sh --profile=dev --dev-type=web
+./setup.sh --profile=dev --dev-type=android
+./setup.sh --profile=dev --dev-type=ai
+./setup.sh --profile=dev --dev-type=systems,web
 
 # Re-run already-completed steps
 ./setup.sh --force
@@ -55,14 +78,15 @@ See [CHANGELOG.md](CHANGELOG.md) for the full history.
 
 ### Profiles
 
-| Profile       | What it installs                                                                                             |
-| ------------- | ------------------------------------------------------------------------------------------------------------ |
-| `minimal`     | DNF config, DNS, fonts, shell (Starship), Brave & codecs, GPU drivers (last)                                 |
-| `dev`         | Minimal + power, no-sleep, GNOME tools, dev tools, Code Editor (Zed/Codium/Antigravity/Code), Docker, KVM/QEMU, GPU drivers (last) |
-| `gaming`      | Minimal + power, GNOME tools, gaming packages (Steam, MangoHud, Vesktop), Flatpaks, GPU drivers (last)       |
-| `workstation` | Minimal + power, GNOME tools, packages, Flatpaks, KVM/QEMU, GPU drivers (last)                               |
-| `creator`     | Gaming + Creator tools (OBS, V4L2, GStreamer, GTK4/Adwaita), Flatpaks, KVM/QEMU, GPU drivers (last)          |
-| `full`        | All steps: DNF, DNS, power, no-sleep, fonts, shell, codecs, COPR & Debian packaging, GNOME, packages, dev, Code Editor, Flatpaks, Docker, KVM, GPU drivers (last) |
+| Profile       | Steps | What it installs                                                                                             |
+| ------------- | :---: | ------------------------------------------------------------------------------------------------------------ |
+| `minimal`     | 7     | DNF config, DNS, fonts, shell (Fish/Zsh + Starship), Brave & codecs, GPU drivers (last)                     |
+| `workstation` | 11    | Minimal + power, GNOME tools & AppIndicator, productivity packages, Flatpaks (Extension Manager), GPU drivers (last) |
+| `gaming`      | 11    | Minimal + power, GNOME tools, gaming packages (Steam, MangoHud, GameMode, Vesktop), Flatpaks (ProtonPlus), GPU drivers (last) |
+| `creator`     | 11    | Minimal + power, GNOME tools, creator tools (OBS, akmod-v4l2loopback, GStreamer, NV Broadcast), Flatpaks, GPU drivers (last) |
+| `dev`         | 16    | Minimal + power, no-sleep, GNOME tools, dev genre packages (`--dev-type`), Code Editor, Flatpaks (Android Studio), Docker, KVM/QEMU, GPU drivers (last) |
+| `full`        | 17    | Complete public power-user superset: workstation + dev + gaming + creator, COPR packages                     |
+| `personal`    | 17    | Author's bespoke workflow: Full + PostgreSQL 18 service, pgAdmin 4, 50GB ccache, dpkg-dev, X11 dev headers, kkfetch |
 
 ---
 

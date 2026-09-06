@@ -257,19 +257,19 @@ run_mock_setup_packages() {
     rm -rf "$sandbox"
 }
 
-# Test gaming packages in gaming, workstation, creator, full profiles
-for prof in "gaming" "workstation" "creator" "full"; do
+# Test gaming packages in gaming, full, personal profiles
+for prof in "gaming" "full" "personal"; do
     output=$(run_mock_setup_packages "$prof")
     dnf_pkgs=$(echo "$output" | grep "^DNF_PKGS:" | cut -d: -f2-)
     steam_unlocked=$(echo "$output" | grep "^STEAM_UNLOCKED:" | cut -d: -f2)
     mangohud_conf=$(echo "$output" | grep "^MANGOHUD_CONFIGURED:" | cut -d: -f2)
     vesktop_inst=$(echo "$output" | grep "^VESKTOP_INSTALLED:" | cut -d: -f2)
 
-    # 1. steam & mangohud in DNF
-    if [[ " $dnf_pkgs " =~ " steam " && " $dnf_pkgs " =~ " mangohud " ]]; then
-        pass "Profile '$prof': steam and mangohud included in DNF packages"
+    # 1. steam, mangohud, gamemode in DNF
+    if [[ " $dnf_pkgs " =~ " steam " && " $dnf_pkgs " =~ " mangohud " && " $dnf_pkgs " =~ " gamemode " ]]; then
+        pass "Profile '$prof': steam, mangohud, and gamemode included in DNF packages"
     else
-        fail "Profile '$prof': steam or mangohud missing from DNF packages (got: $dnf_pkgs)"
+        fail "Profile '$prof': steam, mangohud, or gamemode missing from DNF packages (got: $dnf_pkgs)"
     fi
 
     # 2. eza in DNF
@@ -298,6 +298,66 @@ for prof in "gaming" "workstation" "creator" "full"; do
         pass "Profile '$prof': Vesktop RPM download & install executed"
     else
         fail "Profile '$prof': Vesktop was NOT installed"
+    fi
+done
+
+# Test workstation and creator profiles (must NOT include steam/mangohud/gamemode or their configs, but MUST include eza and vesktop)
+for non_game_prof in "workstation" "creator"; do
+    output=$(run_mock_setup_packages "$non_game_prof")
+    dnf_pkgs=$(echo "$output" | grep "^DNF_PKGS:" | cut -d: -f2-)
+    steam_unlocked=$(echo "$output" | grep "^STEAM_UNLOCKED:" | cut -d: -f2)
+    mangohud_conf=$(echo "$output" | grep "^MANGOHUD_CONFIGURED:" | cut -d: -f2)
+    vesktop_inst=$(echo "$output" | grep "^VESKTOP_INSTALLED:" | cut -d: -f2)
+
+    if [[ ! " $dnf_pkgs " =~ " steam " && ! " $dnf_pkgs " =~ " mangohud " && ! " $dnf_pkgs " =~ " gamemode " ]]; then
+        pass "Profile '$non_game_prof': steam, mangohud, and gamemode are excluded from DNF packages"
+    else
+        fail "Profile '$non_game_prof': gaming packages unexpectedly present in DNF packages (got: $dnf_pkgs)"
+    fi
+
+    if [[ " $dnf_pkgs " =~ " eza " ]]; then
+        pass "Profile '$non_game_prof': eza included in DNF packages"
+    else
+        fail "Profile '$non_game_prof': eza missing from DNF packages"
+    fi
+
+    if [[ "$steam_unlocked" == "false" ]]; then
+        pass "Profile '$non_game_prof': Steam H264 codec unlock is NOT executed"
+    else
+        fail "Profile '$non_game_prof': Steam H264 codec unlock should NOT be executed"
+    fi
+
+    if [[ "$mangohud_conf" == "false" ]]; then
+        pass "Profile '$non_game_prof': MangoHud config is NOT created"
+    else
+        fail "Profile '$non_game_prof': MangoHud config should NOT be created"
+    fi
+
+    if [[ "$vesktop_inst" == "true" ]]; then
+        pass "Profile '$non_game_prof': Vesktop RPM download & install executed"
+    else
+        fail "Profile '$non_game_prof': Vesktop was NOT installed"
+    fi
+done
+
+# Test creator packages (akmod-v4l2loopback) in creator, full, personal vs gaming, workstation
+for c_prof in "creator" "full" "personal"; do
+    output=$(run_mock_setup_packages "$c_prof")
+    dnf_pkgs=$(echo "$output" | grep "^DNF_PKGS:" | cut -d: -f2-)
+    if [[ " $dnf_pkgs " =~ " akmod-v4l2loopback " ]]; then
+        pass "Profile '$c_prof': akmod-v4l2loopback included in DNF packages"
+    else
+        fail "Profile '$c_prof': akmod-v4l2loopback missing from DNF packages"
+    fi
+done
+
+for non_c_prof in "gaming" "workstation" "dev"; do
+    output=$(run_mock_setup_packages "$non_c_prof")
+    dnf_pkgs=$(echo "$output" | grep "^DNF_PKGS:" | cut -d: -f2-)
+    if [[ ! " $dnf_pkgs " =~ " akmod-v4l2loopback " ]]; then
+        pass "Profile '$non_c_prof': akmod-v4l2loopback excluded from DNF packages"
+    else
+        fail "Profile '$non_c_prof': akmod-v4l2loopback should NOT be installed"
     fi
 done
 

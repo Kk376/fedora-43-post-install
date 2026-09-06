@@ -97,28 +97,31 @@ You don't need a heavy developer workstation if you just want to browse the web 
                                               └── NO  ──► 🪶 MINIMAL PROFILE
 ```
 
-### 🪶 1. `minimal` — The Clean Minimalist
-* **Who it's for:** People who want Fedora to feel snappy, modern, and play videos, without installing heavy dev stacks.
-* **What you get:** DNF download turbo, DNS, modern fonts, Starship terminal, Brave browser, multimedia codecs, and GPU drivers.
+### 🪶 1. `minimal` — The Clean Minimalist (7 steps)
+* **Who it's for:** People who want Fedora to feel snappy, modern, and play videos, without installing heavy packages.
+* **What you get:** DNF download turbo, DNS, modern fonts, Fish/Zsh + Starship terminal, Brave browser, multimedia codecs, and GPU drivers.
 
-### 💻 2. `dev` — The Software Engineer
-* **Who it's for:** Web developers, backend programmers, and DevOps engineers.
-* **What you get:** Everything in Minimal + Power management, No-Sleep lock, GNOME tools, compilers (GCC/Clang/Rust/Node/Python), PostgreSQL 18, Zed Editor / Codium, Docker Engine, and KVM Virtual Machines.
+### 💻 2. `dev` — The Software Engineer (16 steps)
+* **Who it's for:** Software engineers across any discipline (`--dev-type=systems,web,android,ai,all`).
+* **What you get:** Everything in Minimal + Power management, No-Sleep lock, GNOME tools & AppIndicator, domain toolchains based on dev genres (systems, web, android, ai), Code Editor (Zed/Codium/Antigravity/Code), Flatpaks (Android Studio), Docker Engine, and KVM Virtual Machines.
 
-### 🎮 3. `gaming` — The Linux Gamer
+### 🎮 3. `gaming` — The Linux Gamer (11 steps)
 * **Who it's for:** Gamers playing on Steam, Discord users, and media lovers.
-* **What you get:** Everything in Minimal + Power tuning, GNOME tools, Steam with H.264 video unlock, MangoHud FPS & temperature overlay, Vesktop (Discord with screen audio), and Flatpaks.
+* **What you get:** Everything in Minimal + Power tuning, GNOME tools, Steam with H.264 video unlock, MangoHud FPS & temperature overlay, GameMode, Vesktop (Discord with screen audio), and Flatpaks (ProtonPlus).
 
-### 🏢 4. `workstation` — The Daily Driver
-* **Who it's for:** A balanced power-user workstation for general productivity, virtualization, and casual gaming.
-* **What you get:** Gaming stack + Essential utilities + KVM/QEMU virtual machines + Full desktop polish.
+### 🏢 4. `workstation` — The Daily Productivity Desktop (11 steps)
+* **Who it's for:** Professional desktop users who want a clean, productive machine without gaming overhead, virtualization clutter, or compilers.
+* **What you get:** Everything in Minimal + Power tuning, GNOME tools & AppIndicator, productivity utilities, and Flatpaks (Extension Manager).
 
-### 🎬 5. `creator` — The Streamer & Content Creator
+### 🎬 5. `creator` — The Streamer & Content Creator (11 steps)
 * **Who it's for:** People who stream, record YouTube videos, edit podcasts, or design GTK apps.
-* **What you get:** Gaming stack + OBS Studio, V4L2 virtual camera loopback, GStreamer media pipeline headers, GTK4/Adwaita design tools, and NVIDIA Broadcast AI audio noise removal.
+* **What you get:** Everything in Workstation + OBS Studio, akmod-v4l2loopback virtual camera, GStreamer media pipeline headers, GTK4/Adwaita design tools, and NVIDIA Broadcast AI audio noise removal.
 
-### 🚀 6. `full` — The Complete Powerhouse *(Default)*
-* **Who it's for:** Users who want everything configured at once, including third-party COPR packages (Scrcpy Android mirroring, Yazi file manager) and Debian package tools.
+### 🚀 6. `full` — The Complete Public Powerhouse (17 steps, Default)
+* **Who it's for:** Users who want the full public superset: workstation + dev + gaming + creator, plus COPR packages (Scrcpy Android mirroring, Yazi file manager).
+
+### 👤 7. `personal` — The Author's Bespoke Workflow (17 steps)
+* **Who it's for:** Dedicated personal profile isolating the author's workflow: Full profile + PostgreSQL 18 server daemon, pgAdmin 4 desktop, 50GB ccache compilation cache, dpkg-dev, X11 dev headers, and kkfetch.
 
 ---
 
@@ -232,8 +235,8 @@ Here is a simple walkthrough of each room the setup crew visits:
 ---
 
 ### 📦 Step 13: Sandboxed Flatpak Apps (`setup_flatpaks`)
-* **The Problem:** Need reliable utilities without polluting system libraries.
-* **The Fix:** Installs **LocalSend** (cross-platform AirDrop alternative for local Wi-Fi sharing), **Mission Center** (modern Windows-like Task Manager), and **ProtonPlus** (manage custom Proton-GE gaming engines).
+* **The Problem:** Need reliable utilities without polluting system libraries or triggering laptop sleep/GPU lockups.
+* **The Fix:** Installs **LocalSend** (cross-platform AirDrop alternative for local Wi-Fi sharing) and **Extension Manager** (browse and manage GNOME Shell extensions cleanly). On gaming profiles, installs **ProtonPlus** (manage custom Proton-GE gaming engines). *Note: Mission Center was purged in v5.5.0 to eliminate MUXless laptop freeze issues.*
 * **Decision:** Say **YES**.
 
 ---
@@ -297,7 +300,7 @@ Here is a simple walkthrough of each room the setup crew visits:
    [ 🛡️ Preflight Checks ] ──► Internet OK? Space ≥ 20GB? Backups ready?
              │
              ▼
-   [ 🎯 Select Your Profile ] ──► (minimal, dev, gaming, workstation, creator, full)
+   [ 🎯 Select Your Profile ] ──► (minimal, dev, gaming, workstation, creator, full, personal)
              │
              ▼
  ┌────────────────────────────────────────────────────────────────────────┐

@@ -77,11 +77,11 @@ run_test "Profile minimal step count (= syntax)" 0 "of 7" --profile=minimal -n
 run_test "Profile minimal (space syntax)" 0 "Profile: minimal" --profile minimal -n
 run_test "Profile minimal step count (space syntax)" 0 "of 7" --profile minimal -n
 
-# Dev profile (15 steps)
+# Dev profile (16 steps)
 run_test "Profile dev (= syntax)" 0 "Profile: dev" --profile=dev -n
-run_test "Profile dev step count (= syntax)" 0 "of 15" --profile=dev -n
+run_test "Profile dev step count (= syntax)" 0 "of 16" --profile=dev -n
 run_test "Profile dev (space syntax)" 0 "Profile: dev" --profile dev -n
-run_test "Profile dev step count (space syntax)" 0 "of 15" --profile dev -n
+run_test "Profile dev step count (space syntax)" 0 "of 16" --profile dev -n
 
 # Gaming profile (11 steps)
 run_test "Profile gaming (= syntax)" 0 "Profile: gaming" --profile=gaming -n
@@ -89,17 +89,17 @@ run_test "Profile gaming step count (= syntax)" 0 "of 11" --profile=gaming -n
 run_test "Profile gaming (space syntax)" 0 "Profile: gaming" --profile gaming -n
 run_test "Profile gaming step count (space syntax)" 0 "of 11" --profile gaming -n
 
-# Workstation profile (12 steps)
+# Workstation profile (11 steps)
 run_test "Profile workstation (= syntax)" 0 "Profile: workstation" --profile=workstation -n
-run_test "Profile workstation step count (= syntax)" 0 "of 12" --profile=workstation -n
+run_test "Profile workstation step count (= syntax)" 0 "of 11" --profile=workstation -n
 run_test "Profile workstation (space syntax)" 0 "Profile: workstation" --profile workstation -n
-run_test "Profile workstation step count (space syntax)" 0 "of 12" --profile workstation -n
+run_test "Profile workstation step count (space syntax)" 0 "of 11" --profile workstation -n
 
-# Creator profile (12 steps)
+# Creator profile (11 steps)
 run_test "Profile creator (= syntax)" 0 "Profile: creator" --profile=creator -n
-run_test "Profile creator step count (= syntax)" 0 "of 12" --profile=creator -n
+run_test "Profile creator step count (= syntax)" 0 "of 11" --profile=creator -n
 run_test "Profile creator (space syntax)" 0 "Profile: creator" --profile creator -n
-run_test "Profile creator step count (space syntax)" 0 "of 12" --profile creator -n
+run_test "Profile creator step count (space syntax)" 0 "of 11" --profile creator -n
 
 # Full profile (17 steps)
 run_test "Profile full (= syntax)" 0 "Profile: full" --profile=full -n
@@ -107,11 +107,28 @@ run_test "Profile full step count (= syntax)" 0 "of 17" --profile=full -n
 run_test "Profile full (space syntax)" 0 "Profile: full" --profile full -n
 run_test "Profile full step count (space syntax)" 0 "of 17" --profile full -n
 
+# Personal profile (17 steps)
+run_test "Profile personal (= syntax)" 0 "Profile: personal" --profile=personal -n
+run_test "Profile personal step count (= syntax)" 0 "of 17" --profile=personal -n
+run_test "Profile personal (space syntax)" 0 "Profile: personal" --profile personal -n
+run_test "Profile personal step count (space syntax)" 0 "of 17" --profile personal -n
+
 # Default profile (when no profile flag passed)
 run_test "Default profile is full" 0 "Profile: full" -n
 run_test "Default profile step count" 0 "of 17" -n
 
-# 5. Invalid options & validation checks
+# 5. Dev-type flags
+run_test "Dev-type systems flag (= syntax)" 0 "DRY-RUN MODE" --profile=dev --dev-type=systems -n
+run_test "Dev-type systems flag (space syntax)" 0 "DRY-RUN MODE" --profile=dev --dev-type systems -n
+run_test "Dev-type web flag" 0 "DRY-RUN MODE" --profile=dev --dev-type=web -n
+run_test "Dev-type android flag" 0 "DRY-RUN MODE" --profile=dev --dev-type=android -n
+run_test "Dev-type ai flag" 0 "DRY-RUN MODE" --profile=dev --dev-type=ai -n
+run_test "Dev-type all flag" 0 "DRY-RUN MODE" --profile=dev --dev-type=all -n
+run_test "Dev-type comma-separated flag" 0 "DRY-RUN MODE" --profile=dev --dev-type=systems,web -n
+run_test "Dev-type invalid rejected" 1 "Unknown dev type: bogus" --profile=dev --dev-type=bogus -n
+run_test "Dev-type missing argument rejected" 1 "Option --dev-type requires an argument" --profile=dev --dev-type
+
+# 6. Invalid options & validation checks
 run_test "Invalid flag (--invalid)" 1 "Unknown option: --invalid" --invalid
 run_test "Invalid short flag (-x)" 1 "Unknown option: -x" -x
 run_test "Invalid option with dash (--unknown)" 1 "Unknown option: --unknown" --unknown
@@ -121,11 +138,12 @@ run_test "Invalid profile name custom" 1 "Unknown profile: nonexistent" --profil
 run_test "Invalid option after valid option" 1 "Unknown option: --bogus" -n --bogus
 run_test "Profile missing argument" 1 "Option --profile requires an argument" --profile
 
-# 6. Flag combinations and ordering
+# 7. Flag combinations and ordering
 run_test "Combo: -n -f --profile=minimal" 0 "Profile: minimal" -n -f --profile=minimal
 run_test "Combo: --profile=creator -f -n" 0 "Profile: creator" --profile=creator -f -n
 run_test "Combo: --profile workstation -n --force" 0 "Profile: workstation" --profile workstation -n --force
 run_test "Combo: -n --profile=dev -f" 0 "Profile: dev" -n --profile=dev -f
+run_test "Combo: --profile=personal -f -n" 0 "Profile: personal" --profile=personal -f -n
 run_test "Combo: --dry-run -h (help exit)" 0 "Usage: .*setup\.sh \[OPTIONS\]" --dry-run -h
 
 echo "------------------------------------------------------------"

@@ -69,7 +69,7 @@ flowchart TD
     end
 
     subgraph StepOrchestration ["Phase 2: Profile Filtering & Step Loop"]
-        FilterSteps["Filter Step Sequence for Profile<br/>(minimal | dev | gaming | workstation | creator | full)"]
+        FilterSteps["Filter Step Sequence for Profile<br/>(minimal | dev | gaming | workstation | creator | full | personal)"]
         FilterSteps --> InitState["Initialize State Tracking File<br/>(~/.config/fedora-setup/state.txt)"]
         InitState --> LoopNext{"More steps in profile?"}
         
@@ -108,18 +108,20 @@ flowchart TD
     UserSelect(["User selects Profile via --profile=<name> (Default: full)"]) --> SwitchProfile{Selected Profile}
 
     SwitchProfile -- minimal --> P_Min["minimal Profile<br/>(7 Steps: DNF, DNS, Fonts, Shell, Browser/Codecs, Pre-Driver Reboot, Drivers)"]
-    SwitchProfile -- dev --> P_Dev["dev Profile<br/>(15 Steps: Minimal + Power, No-Sleep, GNOME, Packages, Dev Tools, Editor, Docker, KVM, Drivers)"]
-    SwitchProfile -- gaming --> P_Gaming["gaming Profile<br/>(11 Steps: Minimal + Power, GNOME, Packages with Steam/MangoHud, Flatpaks, Drivers)"]
-    SwitchProfile -- workstation --> P_Work["workstation Profile<br/>(12 Steps: Gaming + Essential Packages + KVM/QEMU Virtualization + Drivers)"]
-    SwitchProfile -- creator --> P_Creator["creator Profile<br/>(12 Steps: Gaming + OBS Studio + V4L2 Virtual Camera + GStreamer + KVM + Drivers)"]
-    SwitchProfile -- full --> P_Full["full Profile (Default)<br/>(All 17 Steps: Includes COPR Repositories & Debian dpkg-dev Packaging)"]
+    SwitchProfile -- dev --> P_Dev["dev Profile<br/>(16 Steps: Minimal + Power, No-Sleep, GNOME, Packages, Dev Genres, Editor, Flatpaks, Docker, KVM, Drivers)"]
+    SwitchProfile -- gaming --> P_Gaming["gaming Profile<br/>(11 Steps: Minimal + Power, GNOME, Packages with Steam/MangoHud/GameMode, Flatpaks with ProtonPlus, Drivers)"]
+    SwitchProfile -- workstation --> P_Work["workstation Profile<br/>(11 Steps: Minimal + Power, GNOME & AppIndicator, Productivity Packages, Flatpaks, Drivers)"]
+    SwitchProfile -- creator --> P_Creator["creator Profile<br/>(11 Steps: Minimal + Power, GNOME, Creator Packages with OBS/V4L2/GStreamer, Flatpaks, Drivers)"]
+    SwitchProfile -- full --> P_Full["full Profile (Default)<br/>(All 17 Steps: Public Superset of Workstation + Dev + Gaming + Creator + COPR)"]
+    SwitchProfile -- personal --> P_Personal["personal Profile<br/>(All 17 Steps: Full Suite + PostgreSQL 18, 50GB ccache, kkfetch, dpkg-dev)"]
 
     P_Min --> CoreOnly["Target: Minimalist server, container host, or lean desktop"]
-    P_Dev --> DevOnly["Target: Software engineers, backend/web developers, DevOps"]
+    P_Dev --> DevOnly["Target: Software engineers across systems, web, android, or ai genres"]
     P_Gaming --> GameOnly["Target: Linux gamers, Discord users, multimedia consumers"]
-    P_Work --> WorkOnly["Target: Daily productive desktop with VMs & development capability"]
+    P_Work --> WorkOnly["Target: Clean, daily productive desktop without gaming or virtualization overhead"]
     P_Creator --> CreatorOnly["Target: Streamers, video editors, audio engineers, Linux desktop creators"]
-    P_Full --> FullOnly["Target: Power users wanting every utility and repo configured"]
+    P_Full --> FullOnly["Target: Power users wanting complete public workstation, dev, and gaming suite"]
+    P_Personal --> PersonalOnly["Target: Author's bespoke daily workstation with PostgreSQL 18 & compiler caches"]
 ```
 
 ---
@@ -393,7 +395,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    StartFlatpaks(["Start setup_flatpaks()"]) --> InstallApps["Install sandboxed desktop Flatpaks from Flathub:<br/>- org.localsend.localsend_app (LocalSend)<br/>- io.missioncenter.MissionCenter (Mission Center)<br/>- com.vysp3r.ProtonPlus (ProtonPlus)"]
+    StartFlatpaks(["Start setup_flatpaks()"]) --> InstallApps["Install sandboxed desktop Flatpaks from Flathub:<br/>- org.localsend.localsend_app (LocalSend)<br/>- com.mattjakeman.ExtensionManager (Extension Manager)<br/>- com.vysp3r.ProtonPlus (ProtonPlus, gaming profiles)"]
     InstallApps --> ShowProtonPlusInfo["Display ProtonPlus / Proton GE configuration tips"]
     ShowProtonPlusInfo --> EndFlatpaks(["Mark completed"])
 ```

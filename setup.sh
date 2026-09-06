@@ -1,7 +1,7 @@
 #!/bin/bash
 # Fedora 44 Post-Install Setup Script
 # Author: Kushagra Kumar
-# Version: 5.4.0
+# Version: 5.5.0
 
 # ==============================================================================
 # Configuration & Flags
@@ -9,8 +9,9 @@
 : "${DRY_RUN:=false}"
 : "${BACKUP_DIR:=$HOME/.config/fedora-setup-backups/$(date +%Y%m%d_%H%M%S)}"
 : "${LOG_FILE:=/tmp/fedora-setup-$(date +%Y%m%d_%H%M%S).log}"
-: "${SCRIPT_VERSION:=5.4.0}"
+: "${SCRIPT_VERSION:=5.5.0}"
 : "${PROFILE:=full}"
+: "${DEV_TYPE:=all}"
 : "${FORCE_RERUN:=false}"
 # State checkpoint tracking enables idempotent step skipping and seamless resumption across driver reboots.
 : "${STATE_FILE:=$HOME/.config/fedora-setup/state.txt}"
@@ -36,6 +37,18 @@ parse_args() {
                 PROFILE="$2"
                 shift 2
                 ;;
+            --dev-type=*)
+                DEV_TYPE="${1#*=}"
+                shift
+                ;;
+            --dev-type)
+                if [[ $# -lt 2 ]]; then
+                    echo "Error: Option --dev-type requires an argument." >&2
+                    exit 1
+                fi
+                DEV_TYPE="$2"
+                shift 2
+                ;;
             --force|-f)
                 FORCE_RERUN=true
                 shift
@@ -49,11 +62,18 @@ parse_args() {
                 echo "  --dry-run, -n          Preview changes without executing"
                 echo "  --profile=PROFILE      Choose setup profile:"
                 echo "                           minimal     - DNF, DNS, fonts, shell, browser/codecs"
-                echo "                           dev         - Complete dev stack, Docker, Antigravity, KVM"
-                echo "                           gaming      - Multimedia, Steam, MangoHud, Flatpaks, GPU drivers"
-                echo "                           workstation - Productive desktop, Steam, KVM, GPU drivers"
-                echo "                           creator     - Gaming, Creator tools, KVM, GPU drivers"
-                echo "                           full        - All steps including COPR & Debian packaging (default)"
+                echo "                           dev         - Developer stack, Docker, Antigravity, KVM"
+                echo "                           gaming      - Multimedia, Steam, MangoHud, GameMode, Flatpaks"
+                echo "                           workstation - Productive desktop, multimedia, Flatpaks, GPU drivers"
+                echo "                           creator     - OBS Studio, v4l2loopback, GStreamer, NV Broadcast"
+                echo "                           full        - Complete public suite: Workstation + Dev + Gaming + Creator (default)"
+                echo "                           personal    - Author's bespoke workflow: Full + Postgres 18, ccache, kkfetch"
+                echo "  --dev-type=GENRE       Choose developer genre for dev profile (comma-separated):"
+                echo "                           systems     - C, C++, Rust, CMake, Meson, GDB, Valgrind, Hyperfine"
+                echo "                           web         - Node.js, PNPM/Yarn, Python 3, Docker, jq"
+                echo "                           android     - ADB, Fastboot, Scrcpy, Java JDK, Android Studio"
+                echo "                           ai          - Python 3 Devel, Ruff, CUDA Toolkit with GPU guard"
+                echo "                           all         - Full development suite (default)"
                 echo "  --force, -f            Re-run completed steps"
                 echo "  --help, -h             Show this help message"
                 echo ""
@@ -68,9 +88,20 @@ parse_args() {
 
     # Validate profile
     case "$PROFILE" in
-        minimal|dev|gaming|workstation|creator|full) ;;
-        *) echo "Unknown profile: $PROFILE (use minimal, dev, gaming, workstation, creator, or full)"; exit 1 ;;
+        minimal|dev|gaming|workstation|creator|full|personal) ;;
+        *) echo "Unknown profile: $PROFILE (use minimal, dev, gaming, workstation, creator, full, or personal)"; exit 1 ;;
     esac
+
+    # Validate dev genres
+    if [[ -n "${DEV_TYPE:-}" && "$DEV_TYPE" != "all" ]]; then
+        IFS=',' read -ra genres <<< "$DEV_TYPE"
+        for g in "${genres[@]}"; do
+            case "$g" in
+                systems|web|android|ai) ;;
+                *) echo "Unknown dev type: $g (use systems, web, android, ai, or all)"; exit 1 ;;
+            esac
+        done
+    fi
 }
 
 # Colors
@@ -125,15 +156,15 @@ run_sudo() {
 }
 
 is_gaming_profile() {
-    [[ "$PROFILE" == "gaming" || "$PROFILE" == "workstation" || "$PROFILE" == "creator" || "$PROFILE" == "full" ]]
+    [[ "$PROFILE" == "gaming" || "$PROFILE" == "full" || "$PROFILE" == "personal" ]]
 }
 
 is_creator_profile() {
-    [[ "$PROFILE" == "creator" || "$PROFILE" == "workstation" || "$PROFILE" == "full" ]]
+    [[ "$PROFILE" == "creator" || "$PROFILE" == "full" || "$PROFILE" == "personal" ]]
 }
 
 is_dev_profile() {
-    [[ "$PROFILE" == "dev" || "$PROFILE" == "full" ]]
+    [[ "$PROFILE" == "dev" || "$PROFILE" == "full" || "$PROFILE" == "personal" ]]
 }
 
 set_zshrc_line() {
@@ -614,8 +645,8 @@ EOF
 # ZSH + Starship
 # ==============================================================================
 setup_shell() {
-    log "Installing ZSH & Starship..."
-    run_sudo dnf install -y --skip-unavailable zsh curl git fontconfig
+    log "Installing ZSH, Fish & Starship..."
+    run_sudo dnf install -y --skip-unavailable zsh fish curl git fontconfig
 
     if ! command -v starship &>/dev/null && ! $DRY_RUN; then
         if ! run_sudo dnf install -y --skip-unavailable starship 2>/dev/null; then
@@ -939,8 +970,117 @@ alias cat='bat --paging=never --style=plain'
 eval "$(starship init bash)"
 BASHRC_STARSHIP
         fi
+
+        # Configure Fish shell environment and Starship prompt
+        mkdir -p "$HOME/.config/fish"
+        backup_file "$HOME/.config/fish/config.fish"
+        cat > "$HOME/.config/fish/config.fish" <<'FISH_CONF'
+# Disable default welcome greeting
+set -g fish_greeting ""
+
+# ===== Colors & Styling =====
+# Brighter, readable autosuggestion color (matching Tokyo Night palette)
+set -g fish_color_autosuggestion 828bb8
+
+# ===== Environment & PATH =====
+set -gx EDITOR nvim
+set -gx PAGER cat
+set -gx SYSTEMD_PAGER cat
+set -gx MANPAGER cat
+set -gx BAT_PAGER ""
+set -gx DELTA_PAGER cat
+set -gx LESS "-F -X -R"
+set -gx LIBVIRT_DEFAULT_URI "qemu:///system"
+
+# Add personal bin paths
+fish_add_path -m $HOME/.local/bin $HOME/.cargo/bin
+
+# ===== Aliases =====
+alias clear 'printf "\033[2J\033[3J\033[H"'
+alias ls 'eza --group-directories-first --classify --icons --git'
+alias cat 'bat --paging=never --style=plain'
+alias less 'bat --paging=always --pager="less -R"'
+alias la 'ls -la'
+
+# --- Git Shortcuts ---
+alias gs 'git status -sb'
+alias ga 'git add'
+alias gaa 'git add -A'
+alias gap 'git add -p'
+alias gc 'git commit'
+alias gcm 'git commit -m'
+alias gca 'git commit --amend'
+alias gcan 'git commit --amend --no-edit'
+alias gp 'git push'
+alias gpf 'git push --force-with-lease'
+alias gpl 'git pull --rebase'
+alias gd 'git diff'
+alias gds 'git diff --staged'
+alias gl 'git log --oneline --graph --decorate -n 15'
+alias glog 'git log --oneline --graph --decorate --all'
+alias gco 'git checkout'
+alias gcb 'git checkout -b'
+alias gsw 'git switch'
+alias gswc 'git switch -c'
+alias gst 'git stash'
+alias gstp 'git stash pop'
+alias gundo 'git reset --soft HEAD~1'
+
+# ===== FZF Fuzzy Finder =====
+if type -q fzf
+    fzf --fish | source
+end
+
+# ===== Starship Prompt (ALWAYS LAST) =====
+if type -q starship
+    starship init fish | source
+end
+FISH_CONF
+        success "Fish configuration deployed (~/.config/fish/config.fish)"
+
+        # Interactive selection for default user login shell
+        echo ""
+        info "Default Interactive Shell:"
+        info "  1) Fish (Recommended for built-in autosuggestions & syntax highlighting)"
+        info "  2) ZSH (with Starship & autosuggestions plugin)"
+        info "  3) Bash"
+        info "  4) Skip / Keep current shell (${SHELL:-/bin/bash})"
+        local shell_choice=""
+        if $DRY_RUN; then
+            dry "Prompt for default shell selection [1-4]"
+        else
+            read -r -p "Enter choice [1-4] (default: 1): " shell_choice
+            shell_choice="${shell_choice:-1}"
+            case "$shell_choice" in
+                1)
+                    if command -v fish &>/dev/null; then
+                        local fish_bin
+                        fish_bin=$(command -v fish)
+                        grep -qxF "$fish_bin" /etc/shells || echo "$fish_bin" | run_sudo tee -a /etc/shells >/dev/null
+                        run_sudo chsh -s "$fish_bin" "${USER:-$(id -un)}" 2>/dev/null || true
+                        success "Default shell set to Fish"
+                    fi
+                    ;;
+                2)
+                    if command -v zsh &>/dev/null; then
+                        local zsh_bin
+                        zsh_bin=$(command -v zsh)
+                        grep -qxF "$zsh_bin" /etc/shells || echo "$zsh_bin" | run_sudo tee -a /etc/shells >/dev/null
+                        run_sudo chsh -s "$zsh_bin" "${USER:-$(id -un)}" 2>/dev/null || true
+                        success "Default shell set to ZSH"
+                    fi
+                    ;;
+                3)
+                    run_sudo chsh -s /bin/bash "${USER:-$(id -un)}" 2>/dev/null || true
+                    success "Default shell set to Bash"
+                    ;;
+                *)
+                    info "Keeping current default shell"
+                    ;;
+            esac
+        fi
     else
-        dry "Install Starship, clone plugins, deploy starship.toml, .zshrc, and .bashrc"
+        dry "Install Starship, clone plugins, deploy starship.toml, .zshrc, config.fish, and .bashrc"
     fi
 
     # Configure Kitty terminal emulator (interactive option)
@@ -1012,7 +1152,7 @@ map ctrl+l combine : clear_terminal scroll active : send_text normal,application
 
 # --- Audio & Shell ---
 enable_audio_bell no
-shell zsh
+shell .
 
 # --- Tokyo Night Color Scheme ---
 background #1a1b26
@@ -1290,6 +1430,7 @@ setup_copr() {
     local coprs=(
         "zeno/scrcpy:scrcpy:Scrcpy - Android Screen Mirroring & Control:Low-latency Android device screen mirroring and control over USB/Wi-Fi without root.:Install if you mirror Android devices or test mobile apps. Otherwise skip."
         "lihaohong/yazi:yazi file ffmpeg 7zip jq poppler-utils fd-find ripgrep fzf zoxide resvg xclip wl-clipboard xsel ImageMagick:Yazi - Terminal File Manager with Rich Previews:Blazing-fast terminal file manager in Rust with async I/O and inline image/video/PDF previews.:Install if you prefer keyboard-driven terminal navigation with rich media previews. Otherwise skip."
+        "kk376/kkfetch:kkfetch:kkfetch - Fast System Info Fetch Tool:Lightweight, high-performance system information fetch tool in Rust.:Install if you want a fast, modern system fetch tool in your terminal. Otherwise skip."
     )
     for entry in "${coprs[@]}"; do
         local repo pkgs title desc rec
@@ -1378,7 +1519,7 @@ setup_fonts() {
 # ==============================================================================
 setup_gnome() {
     log "Installing GNOME tools and extensions..."
-    run_sudo dnf install -y gnome-tweaks gnome-shell-extension-gsconnect
+    run_sudo dnf install -y gnome-tweaks gnome-shell-extension-gsconnect gnome-shell-extension-appindicator
 
     # Enable firewall service for GSConnect / KDE Connect
     if command -v firewall-cmd &>/dev/null; then
@@ -1435,19 +1576,17 @@ setup_packages() {
     log "Installing essential packages..."
 
     local pkgs_to_install=(
-        gcc clang fastfetch make cmake perl wmctrl cargo maven bat eza \
-        fd-find ripgrep fzf zoxide ruff python-unversioned-command \
-        java-latest-openjdk java-latest-openjdk-devel nodejs python3 python3-pip wget htop duf sassc unzip unrar \
-        p7zip p7zip-plugins ntfs-3g gparted timeshift vlc qbittorrent wl-clipboard \
-        telegram-desktop vim neovim gh libva-utils gstreamer1-plugin-openh264 android-tools
+        fastfetch bat eza fd-find ripgrep fzf zoxide wget htop duf plocate tree compsize \
+        unzip unrar p7zip p7zip-plugins ntfs-3g gparted timeshift vlc qbittorrent wl-clipboard \
+        wmctrl vim libva-utils gstreamer1-plugin-openh264 telegram-desktop android-tools
     )
 
     if is_gaming_profile; then
-        pkgs_to_install+=(steam mangohud)
+        pkgs_to_install+=(steam mangohud gamemode)
     fi
 
     if is_creator_profile; then
-        pkgs_to_install+=(obs-studio v4l-utils gtk4-devel libadwaita-devel gstreamer1-devel libayatana-appindicator-gtk3 pulseaudio-utils)
+        pkgs_to_install+=(obs-studio akmod-v4l2loopback v4l-utils gtk4-devel libadwaita-devel gstreamer1-devel libayatana-appindicator-gtk3 pulseaudio-utils)
     fi
 
     run_sudo dnf install -y --skip-unavailable "${pkgs_to_install[@]}"
@@ -1601,6 +1740,40 @@ EOF
 setup_dev() {
     log "Installing dev tools & libraries..."
 
+    local selected_genres=()
+    if [[ -n "${DEV_TYPE:-}" && "$DEV_TYPE" != "all" ]]; then
+        IFS=',' read -ra selected_genres <<< "$DEV_TYPE"
+    elif [[ "$PROFILE" == "full" || "$PROFILE" == "personal" ]] || $DRY_RUN || ! [ -t 0 ]; then
+        selected_genres=("systems" "web" "android" "ai")
+    else
+        echo ""
+        echo -e "${BLUE}Choose your development focus (genres):${NC}"
+        echo -e "  1) Systems & Low-Level (C, C++, Rust, CMake, Meson, GDB, Valgrind, Hyperfine)"
+        echo -e "  2) Web & Cloud         (Node.js, PNPM/Yarn, Python 3, Docker, jq)"
+        echo -e "  3) Android & Mobile    (ADB, Fastboot, Scrcpy, Java JDK, Android Studio)"
+        echo -e "  4) Data & AI           (Python 3 Devel, Ruff, CUDA Toolkit with GPU guard)"
+        echo -e "  5) Full Suite          (Install all development tools - Recommended)"
+        echo ""
+        local dev_choice=""
+        read -r -p "Enter choice [1-5] (default: 5): " dev_choice
+        dev_choice="${dev_choice:-5}"
+        case "$dev_choice" in
+            1) selected_genres=("systems") ;;
+            2) selected_genres=("web") ;;
+            3) selected_genres=("android") ;;
+            4) selected_genres=("ai") ;;
+            *) selected_genres=("systems" "web" "android" "ai") ;;
+        esac
+    fi
+
+    has_dev_genre() {
+        local target="$1"
+        for g in "${selected_genres[@]}"; do
+            [[ "$g" == "$target" || "$g" == "all" ]] && return 0
+        done
+        return 1
+    }
+
     local dev_pkgs=(
         meson ninja-build automake autoconf libtool pkg-config bear
         gdb valgrind strace ltrace clang-tools-extra
@@ -1608,9 +1781,31 @@ setup_dev() {
         ImageMagick git-lfs git-filter-repo gnupg lz4 rsync zip
         python3-devel python3-virtualenv python3-wheel python3-setuptools
         openssl-devel zlib-devel elfutils-libelf-devel elfutils-devel gnutls-devel
+        hyperfine jq
     )
 
+    if has_dev_genre "systems"; then
+        dev_pkgs+=(gcc clang llvm make cmake)
+    fi
+
+    if has_dev_genre "web"; then
+        dev_pkgs+=(nodejs)
+    fi
+
+    if has_dev_genre "android"; then
+        dev_pkgs+=(java-latest-openjdk java-latest-openjdk-devel maven)
+    fi
+
     if [[ "$PROFILE" == "full" ]]; then
+        dev_pkgs+=(
+            dpkg-dev
+            libX11-devel
+            libxkbcommon-x11-devel
+            libxcb-devel
+            fontconfig-devel
+            alsa-lib-devel
+        )
+    elif [[ "$PROFILE" == "personal" ]]; then
         dev_pkgs+=(
             dpkg-dev
             libX11-devel
@@ -1623,11 +1818,47 @@ setup_dev() {
 
     run_sudo dnf install -y --skip-unavailable "${dev_pkgs[@]}"
 
-    if confirm "Install full Rust toolchain (rustup, clippy, rust-analyzer)?" "Y"; then
-        run_sudo dnf install -y rust cargo rustup rustfmt clippy rust-analyzer 2>/dev/null || true
+    # Systems Genre: Rust Toolchain
+    if has_dev_genre "systems"; then
+        if confirm "Install full Rust toolchain (rustup, clippy, rust-analyzer)?" "Y"; then
+            run_sudo dnf install -y rust cargo rustup rustfmt clippy rust-analyzer 2>/dev/null || true
+        fi
     fi
 
-    if command -v ccache &>/dev/null || $DRY_RUN; then
+    # Android Genre: Android Studio (Flatpak)
+    if has_dev_genre "android"; then
+        echo ""
+        info "Android Studio (Official Android IDE & Virtual Device Emulator):"
+        info "  • Complete IDE for Android app development, SDK manager, and hardware-accelerated emulator."
+        info "  • Recommendation: Install if you develop Android apps. Skip if you only need ADB/Fastboot."
+        if confirm "Install Android Studio (via Flathub)?" "Y"; then
+            run flatpak install -y flathub com.google.AndroidStudio 2>/dev/null || warn "Failed to install Android Studio Flatpak"
+        else
+            info "Skipping Android Studio installation"
+        fi
+    fi
+
+    # Data & AI Genre: Hardware-Gated NVIDIA CUDA Failsafe
+    if has_dev_genre "ai"; then
+        if lspci 2>/dev/null | grep -Ei 'VGA|3D|Display' | grep -qi nvidia; then
+            echo ""
+            info "NVIDIA GPU Detected for Data & AI:"
+            info "  • CUDA development packages provide headers & libraries for native PyTorch/TensorRT acceleration."
+            info "  • Recommendation: Install if you compile custom CUDA kernels or native ML extensions."
+            if confirm "Install NVIDIA CUDA development libraries?" "Y"; then
+                run_sudo dnf install -y --skip-unavailable xorg-x11-drv-nvidia-cuda-devel 2>/dev/null || true
+            fi
+        else
+            if lspci 2>/dev/null | grep -Ei 'VGA|3D|Display' | grep -qi amd; then
+                info "AMD GPU detected: Skipping NVIDIA CUDA. (AMD uses ROCm for PyTorch/ML acceleration)"
+            else
+                info "Non-NVIDIA system detected: Skipping CUDA installation safely."
+            fi
+        fi
+    fi
+
+    # ccache compiler cache configuration
+    if [[ "$PROFILE" == "personal" ]] || { command -v ccache &>/dev/null || $DRY_RUN; }; then
         if ! $DRY_RUN; then
             ccache --set-config=max_size=50G 2>/dev/null || true
             ccache --set-config=compression=true 2>/dev/null || true
@@ -1639,7 +1870,8 @@ setup_dev() {
         fi
     fi
 
-    if command -v npm &>/dev/null; then
+    # Web Genre: Corepack for yarn/pnpm
+    if has_dev_genre "web" && command -v npm &>/dev/null; then
         log "Enabling corepack (yarn/pnpm)..."
         run_sudo npm install -g corepack 2>/dev/null || true
         run_sudo corepack enable 2>/dev/null || true
@@ -1669,49 +1901,60 @@ setup_dev() {
     fi
 
     # PostgreSQL 18 Server (PGDG Official Repository)
-    log "Installing PostgreSQL 18 Server..."
-    if ! $DRY_RUN; then
-        local fedora_ver
-        fedora_ver=$(rpm -E %fedora 2>/dev/null || echo "44")
-        local arch
-        arch=$(uname -m)
-        local pgdg_rpm="https://download.postgresql.org/pub/repos/yum/reporpms/F-${fedora_ver}-${arch}/pgdg-fedora-repo-latest.noarch.rpm"
-        if ! rpm -q pgdg-fedora-repo &>/dev/null; then
-            run_sudo dnf install -y --skip-unavailable "$pgdg_rpm" 2>/dev/null || true
+    local install_pg=false
+    if [[ "$PROFILE" == "personal" ]]; then
+        install_pg=true
+    elif [[ "$PROFILE" == "full" ]]; then
+        if confirm "Install and configure PostgreSQL 18 Server & pgAdmin 4?" "N"; then
+            install_pg=true
         fi
-        if run_sudo dnf install -y postgresql18-server postgresql18 postgresql18-libs; then
-            if [[ ! -f "/var/lib/pgsql/18/data/PG_VERSION" ]]; then
-                log "Initializing PostgreSQL 18 database cluster..."
-                run_sudo /usr/pgsql-18/bin/postgresql-18-setup initdb 2>/dev/null || true
-            fi
-            run_sudo systemctl enable --now postgresql-18 2>/dev/null || true
-            if [[ -d "/usr/pgsql-18/bin" ]]; then
-                run_sudo tee /etc/profile.d/pgsql18.sh > /dev/null <<'PG_PROFILE'
-export PATH="/usr/pgsql-18/bin:$PATH"
-PG_PROFILE
-            fi
-            success "PostgreSQL 18 installed, initialized, and enabled"
-        else
-            warn "PostgreSQL 18 installation failed"
-        fi
-    else
-        dry "Install pgdg-fedora-repo, postgresql18-server, run initdb, and enable postgresql-18.service"
     fi
 
-    # pgAdmin 4 (Official PostgreSQL Administration GUI)
-    log "Installing pgAdmin 4 Desktop..."
-    if ! $DRY_RUN; then
-        local pgadmin_repo_rpm="https://ftp.postgresql.org/pub/pgadmin/pgadmin4/yum/pgadmin4-fedora-repo-2-1.noarch.rpm"
-        if ! rpm -q pgadmin4-fedora-repo &>/dev/null; then
-            run_sudo dnf install -y --skip-unavailable "$pgadmin_repo_rpm" 2>/dev/null || true
-        fi
-        if run_sudo dnf install -y pgadmin4-desktop; then
-            success "pgAdmin 4 Desktop installed"
+    if $install_pg; then
+        log "Installing PostgreSQL 18 Server..."
+        if ! $DRY_RUN; then
+            local fedora_ver
+            fedora_ver=$(rpm -E %fedora 2>/dev/null || echo "44")
+            local arch
+            arch=$(uname -m)
+            local pgdg_rpm="https://download.postgresql.org/pub/repos/yum/reporpms/F-${fedora_ver}-${arch}/pgdg-fedora-repo-latest.noarch.rpm"
+            if ! rpm -q pgdg-fedora-repo &>/dev/null; then
+                run_sudo dnf install -y --skip-unavailable "$pgdg_rpm" 2>/dev/null || true
+            fi
+            if run_sudo dnf install -y postgresql18-server postgresql18 postgresql18-libs; then
+                if [[ ! -f "/var/lib/pgsql/18/data/PG_VERSION" ]]; then
+                    log "Initializing PostgreSQL 18 database cluster..."
+                    run_sudo /usr/pgsql-18/bin/postgresql-18-setup initdb 2>/dev/null || true
+                fi
+                run_sudo systemctl enable --now postgresql-18 2>/dev/null || true
+                if [[ -d "/usr/pgsql-18/bin" ]]; then
+                    run_sudo tee /etc/profile.d/pgsql18.sh > /dev/null <<'PG_PROFILE'
+export PATH="/usr/pgsql-18/bin:$PATH"
+PG_PROFILE
+                fi
+                success "PostgreSQL 18 installed, initialized, and enabled"
+            else
+                warn "PostgreSQL 18 installation failed"
+            fi
         else
-            warn "pgAdmin 4 installation failed"
+            dry "Install pgdg-fedora-repo, postgresql18-server, run initdb, and enable postgresql-18.service"
         fi
-    else
-        dry "Install pgadmin4-fedora-repo and pgadmin4-desktop via dnf"
+
+        # pgAdmin 4 (Official PostgreSQL Administration GUI)
+        log "Installing pgAdmin 4 Desktop..."
+        if ! $DRY_RUN; then
+            local pgadmin_repo_rpm="https://ftp.postgresql.org/pub/pgadmin/pgadmin4/yum/pgadmin4-fedora-repo-2-1.noarch.rpm"
+            if ! rpm -q pgadmin4-fedora-repo &>/dev/null; then
+                run_sudo dnf install -y --skip-unavailable "$pgadmin_repo_rpm" 2>/dev/null || true
+            fi
+            if run_sudo dnf install -y pgadmin4-desktop; then
+                success "pgAdmin 4 Desktop installed"
+            else
+                warn "pgAdmin 4 installation failed"
+            fi
+        else
+            dry "Install pgadmin4-fedora-repo and pgadmin4-desktop via dnf"
+        fi
     fi
 
     step_complete "Dev tools installed"
@@ -2061,12 +2304,19 @@ VSCODE_SETTINGS
 # ==============================================================================
 setup_flatpaks() {
     log "Installing Flatpaks..."
-    run flatpak install -y flathub org.localsend.localsend_app io.missioncenter.MissionCenter com.vysp3r.ProtonPlus 2>/dev/null || true
+    local flatpaks=(org.localsend.localsend_app com.mattjakeman.ExtensionManager)
+    if is_gaming_profile; then
+        flatpaks+=(com.vysp3r.ProtonPlus)
+    fi
 
-    info "ProtonPlus installed - Use for Proton GE:"
-    info "  • Only use if a game has issues with default Proton"
-    info "  • Install latest Proton GE version from ProtonPlus"
-    info "  • Set per-game in Steam: Properties → Compatibility"
+    run flatpak install -y flathub "${flatpaks[@]}" 2>/dev/null || true
+
+    if is_gaming_profile; then
+        info "ProtonPlus installed - Use for Proton GE:"
+        info "  • Only use if a game has issues with default Proton"
+        info "  • Install latest Proton GE version from ProtonPlus"
+        info "  • Set per-game in Steam: Properties → Compatibility"
+    fi
 
     step_complete "Flatpaks installed"
 }
@@ -2386,11 +2636,12 @@ main() {
     # Step matrices mapping profiles to required setup functions
     local -A PROFILE_STEPS
     PROFILE_STEPS[minimal]="setup_dnf setup_dns setup_fonts setup_shell setup_browser_multimedia setup_pre_driver_reboot setup_drivers"
-    PROFILE_STEPS[dev]="setup_dnf setup_dns setup_power setup_nosleep setup_fonts setup_shell setup_browser_multimedia setup_gnome setup_packages setup_dev setup_editor setup_docker setup_kvm setup_pre_driver_reboot setup_drivers"
+    PROFILE_STEPS[dev]="setup_dnf setup_dns setup_power setup_nosleep setup_fonts setup_shell setup_browser_multimedia setup_gnome setup_packages setup_dev setup_editor setup_flatpaks setup_docker setup_kvm setup_pre_driver_reboot setup_drivers"
     PROFILE_STEPS[gaming]="setup_dnf setup_dns setup_power setup_fonts setup_shell setup_browser_multimedia setup_gnome setup_packages setup_flatpaks setup_pre_driver_reboot setup_drivers"
-    PROFILE_STEPS[workstation]="setup_dnf setup_dns setup_power setup_fonts setup_shell setup_browser_multimedia setup_gnome setup_packages setup_flatpaks setup_kvm setup_pre_driver_reboot setup_drivers"
-    PROFILE_STEPS[creator]="setup_dnf setup_dns setup_power setup_fonts setup_shell setup_browser_multimedia setup_gnome setup_packages setup_flatpaks setup_kvm setup_pre_driver_reboot setup_drivers"
+    PROFILE_STEPS[workstation]="setup_dnf setup_dns setup_power setup_fonts setup_shell setup_browser_multimedia setup_gnome setup_packages setup_flatpaks setup_pre_driver_reboot setup_drivers"
+    PROFILE_STEPS[creator]="setup_dnf setup_dns setup_power setup_fonts setup_shell setup_browser_multimedia setup_gnome setup_packages setup_flatpaks setup_pre_driver_reboot setup_drivers"
     PROFILE_STEPS[full]=""
+    PROFILE_STEPS[personal]=""
 
     info "Profile: $PROFILE"
     [[ -n "${PROFILE_STEPS[$PROFILE]}" ]] && info "Running steps: ${PROFILE_STEPS[$PROFILE]}"
