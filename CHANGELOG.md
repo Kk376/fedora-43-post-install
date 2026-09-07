@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 Follows semantic versioning: MAJOR.MINOR.PATCH
 
+## [v5.5.5] – 2026-09-07
+
+### Added
+
+- **Interactive Profile Menu**: Running `./setup.sh` directly without command-line arguments presents an interactive menu to choose your profile (`minimal`, `workstation`, `gaming`, `creator`, `dev`, `full`, or `personal`). If `dev` is selected, an interactive submenu allows selecting developer genres (`systems`, `web`, `android`, `ai`, or `all`). Defaults to `full` profile when pressing Enter or in non-interactive/dry-run contexts.
+- **Personal Profile Media Suite**: Added `cliamp` (retro TUI music player preconfigured for YouTube Music via Chrome keyring cookies) and `ani-cli` (anime streaming CLI with patched provider) to the author's bespoke `personal` profile.
+
+### Changed
+
+- **Usage Documentation**: Simplified `README.md` Usage to focus on interactive execution (`./setup.sh`), dry-run preview (`./setup.sh --dry-run`), and forced re-runs (`./setup.sh --force`), removing cumbersome manual CLI profile flags in favor of the interactive menu.
+
 ## [v5.5.0] – 2026-09-07
 
 ### Added

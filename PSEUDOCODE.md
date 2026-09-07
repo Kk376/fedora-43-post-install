@@ -105,7 +105,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    UserSelect(["User selects Profile via --profile=<name> (Default: full)"]) --> SwitchProfile{Selected Profile}
+    UserSelect(["User selects Profile via Interactive Menu or --profile=<name> (Default: full)"]) --> SwitchProfile{Selected Profile}
 
     SwitchProfile -- minimal --> P_Min["minimal Profile<br/>(7 Steps: DNF, DNS, Fonts, Shell, Browser/Codecs, Pre-Driver Reboot, Drivers)"]
     SwitchProfile -- dev --> P_Dev["dev Profile<br/>(16 Steps: Minimal + Power, No-Sleep, GNOME, Packages, Dev Genres, Editor, Flatpaks, Docker, KVM, Drivers)"]

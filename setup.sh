@@ -1,7 +1,7 @@
 #!/bin/bash
 # Fedora 44 Post-Install Setup Script
 # Author: Kushagra Kumar
-# Version: 5.5.0
+# Version: 5.5.5
 
 # ==============================================================================
 # Configuration & Flags
@@ -9,9 +9,11 @@
 : "${DRY_RUN:=false}"
 : "${BACKUP_DIR:=$HOME/.config/fedora-setup-backups/$(date +%Y%m%d_%H%M%S)}"
 : "${LOG_FILE:=/tmp/fedora-setup-$(date +%Y%m%d_%H%M%S).log}"
-: "${SCRIPT_VERSION:=5.5.0}"
+: "${SCRIPT_VERSION:=5.5.5}"
 : "${PROFILE:=full}"
 : "${DEV_TYPE:=all}"
+PROFILE_SPECIFIED=false
+DEV_TYPE_SPECIFIED=false
 : "${FORCE_RERUN:=false}"
 # State checkpoint tracking enables idempotent step skipping and seamless resumption across driver reboots.
 : "${STATE_FILE:=$HOME/.config/fedora-setup/state.txt}"
@@ -27,6 +29,7 @@ parse_args() {
                 ;;
             --profile=*)
                 PROFILE="${1#*=}"
+                PROFILE_SPECIFIED=true
                 shift
                 ;;
             --profile)
@@ -35,10 +38,12 @@ parse_args() {
                     exit 1
                 fi
                 PROFILE="$2"
+                PROFILE_SPECIFIED=true
                 shift 2
                 ;;
             --dev-type=*)
                 DEV_TYPE="${1#*=}"
+                DEV_TYPE_SPECIFIED=true
                 shift
                 ;;
             --dev-type)
@@ -47,6 +52,7 @@ parse_args() {
                     exit 1
                 fi
                 DEV_TYPE="$2"
+                DEV_TYPE_SPECIFIED=true
                 shift 2
                 ;;
             --force|-f)
@@ -60,7 +66,7 @@ parse_args() {
                 echo ""
                 echo "Options:"
                 echo "  --dry-run, -n          Preview changes without executing"
-                echo "  --profile=PROFILE      Choose setup profile:"
+                echo "  --profile=PROFILE      Choose setup profile (if omitted, interactive menu is shown):"
                 echo "                           minimal     - DNF, DNS, fonts, shell, browser/codecs"
                 echo "                           dev         - Developer stack, Docker, Antigravity, KVM"
                 echo "                           gaming      - Multimedia, Steam, MangoHud, GameMode, Flatpaks"
@@ -86,11 +92,13 @@ parse_args() {
         esac
     done
 
-    # Validate profile
-    case "$PROFILE" in
-        minimal|dev|gaming|workstation|creator|full|personal) ;;
-        *) echo "Unknown profile: $PROFILE (use minimal, dev, gaming, workstation, creator, full, or personal)"; exit 1 ;;
-    esac
+    # Validate profile if explicitly specified
+    if $PROFILE_SPECIFIED; then
+        case "$PROFILE" in
+            minimal|dev|gaming|workstation|creator|full|personal) ;;
+            *) echo "Unknown profile: $PROFILE (use minimal, dev, gaming, workstation, creator, full, or personal)"; exit 1 ;;
+        esac
+    fi
 
     # Validate dev genres
     if [[ -n "${DEV_TYPE:-}" && "$DEV_TYPE" != "all" ]]; then
@@ -410,6 +418,98 @@ confirm() {
         [[ -z "$yn" || "$yn" =~ ^[Yy]$ ]]
     else
         [[ "$yn" =~ ^[Yy]$ ]]
+    fi
+}
+
+# Interactive profile selection menu
+select_profile_menu() {
+    # If profile was explicitly specified via CLI flag, skip interactive menu
+    if $PROFILE_SPECIFIED; then
+        return 0
+    fi
+
+    # In dry-run mode without explicit profile, auto-select full profile
+    if $DRY_RUN; then
+        dry "Prompt: Select setup profile (auto-full in dry-run)"
+        PROFILE="full"
+        return 0
+    fi
+
+    echo ""
+    echo -e "${GREEN}========================================${NC}"
+    echo -e "${GREEN}       Select Setup Profile             ${NC}"
+    echo -e "${GREEN}========================================${NC}"
+    echo "  1) minimal     - DNF, DNS, fonts, shell, browser/codecs (7 steps)"
+    echo "  2) workstation - Minimal + power, GNOME, productivity, Flatpaks (11 steps)"
+    echo "  3) gaming      - Minimal + power, GNOME, Steam, MangoHud, GameMode (11 steps)"
+    echo "  4) creator     - Minimal + power, GNOME, OBS Studio, loopback, NV Broadcast (11 steps)"
+    echo "  5) dev         - Developer stack, Docker, Antigravity, KVM/QEMU (16 steps)"
+    echo "  6) full        - Complete public suite: Workstation + Dev + Gaming + Creator (default) (17 steps)"
+    echo "  7) personal    - Author's bespoke workflow: Full + Postgres, ccache, kkfetch, cliamp, ani-cli (17 steps)"
+    echo ""
+
+    local choice=""
+    read -r -p "Enter choice [1-7, default: 6 (full)]: " choice || choice=""
+    case "$choice" in
+        1|minimal) PROFILE="minimal" ;;
+        2|workstation) PROFILE="workstation" ;;
+        3|gaming) PROFILE="gaming" ;;
+        4|creator) PROFILE="creator" ;;
+        5|dev) PROFILE="dev" ;;
+        6|full|"") PROFILE="full" ;;
+        7|personal) PROFILE="personal" ;;
+        *)
+            warn "Unrecognized selection '$choice'; defaulting to 'full' profile"
+            PROFILE="full"
+            ;;
+    esac
+    info "Selected profile: $PROFILE"
+
+    # If dev profile selected and dev genres not specified, prompt for genres
+    if [[ "$PROFILE" == "dev" ]] && ! $DEV_TYPE_SPECIFIED; then
+        echo ""
+        echo -e "${BLUE}========================================${NC}"
+        echo -e "${BLUE}       Select Developer Stack           ${NC}"
+        echo -e "${BLUE}========================================${NC}"
+        echo "  1) systems - C, C++, Rust, CMake, Meson, GDB, Valgrind, Hyperfine"
+        echo "  2) web     - Node.js, PNPM/Yarn, Python 3, Docker, jq"
+        echo "  3) android - ADB, Fastboot, Scrcpy, Java JDK, Android Studio"
+        echo "  4) ai      - Python 3 Devel, Ruff, CUDA Toolkit"
+        echo "  5) all     - Full development suite (default)"
+        echo ""
+
+        local dev_choice=""
+        read -r -p "Select developer genres [1-5 or comma-separated, default: 5 (all)]: " dev_choice || dev_choice=""
+        case "$dev_choice" in
+            1|systems) DEV_TYPE="systems" ;;
+            2|web) DEV_TYPE="web" ;;
+            3|android) DEV_TYPE="android" ;;
+            4|ai) DEV_TYPE="ai" ;;
+            5|all|"") DEV_TYPE="all" ;;
+            *)
+                local translated=()
+                IFS=',' read -ra raw_genres <<< "$dev_choice"
+                for rg in "${raw_genres[@]}"; do
+                    # Strip leading and trailing whitespace
+                    rg="${rg#"${rg%%[![:space:]]*}"}"
+                    rg="${rg%"${rg##*[![:space:]]}"}"
+                    case "$rg" in
+                        1|systems) translated+=("systems") ;;
+                        2|web) translated+=("web") ;;
+                        3|android) translated+=("android") ;;
+                        4|ai) translated+=("ai") ;;
+                        5|all) translated+=("all") ;;
+                        *) warn "Unknown dev genre '$rg' ignored" ;;
+                    esac
+                done
+                if [[ ${#translated[@]} -gt 0 ]]; then
+                    DEV_TYPE=$(IFS=,; echo "${translated[*]}")
+                else
+                    DEV_TYPE="all"
+                fi
+                ;;
+        esac
+        info "Selected dev genres: $DEV_TYPE"
     fi
 }
 
@@ -2662,14 +2762,6 @@ main() {
     # Enable logging to file only during active execution
     exec > >(tee -a "$LOG_FILE") 2>&1
 
-    # Refresh sudo timestamp in background subshell loop to prevent auth expiry during long DNF or compilation tasks.
-    # Loop terminates automatically when parent script process ($$) exits.
-    if ! $DRY_RUN; then
-        sudo -v || { error "Requires sudo"; exit 1; }
-        while true; do sudo -n true; sleep 60; kill -0 "$$" 2>/dev/null || exit; done &
-        SUDO_PID=$!
-    fi
-
     if $DRY_RUN; then
         echo -e "\033[0;35m========================================${NC}"
         echo -e "\033[0;35m   DRY-RUN MODE - No changes will be made${NC}"
@@ -2682,6 +2774,17 @@ main() {
     echo -e "${GREEN}========================================${NC}"
     info "Started at $(date)"
     info "Log file: $LOG_FILE"
+
+    # Interactive profile selection menu
+    select_profile_menu
+
+    # Refresh sudo timestamp in background subshell loop to prevent auth expiry during long DNF or compilation tasks.
+    # Loop terminates automatically when parent script process ($$) exits.
+    if ! $DRY_RUN; then
+        sudo -v || { error "Requires sudo"; exit 1; }
+        while true; do sudo -n true; sleep 60; kill -0 "$$" 2>/dev/null || exit; done &
+        SUDO_PID=$!
+    fi
 
     if confirm "Show currently installed versions?" "N"; then
         show_versions
