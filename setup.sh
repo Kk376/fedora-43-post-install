@@ -1976,7 +1976,7 @@ setup_dev() {
         ImageMagick git-lfs git-filter-repo gnupg lz4 rsync zip
         python3-devel python3-virtualenv python3-wheel python3-setuptools
         openssl-devel zlib-devel elfutils-libelf-devel elfutils-devel gnutls-devel
-        hyperfine jq
+        hyperfine jq glab
     )
 
     if has_dev_genre "systems"; then
