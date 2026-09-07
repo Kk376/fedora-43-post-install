@@ -67,7 +67,7 @@ parse_args() {
                 echo "                           workstation - Productive desktop, multimedia, Flatpaks, GPU drivers"
                 echo "                           creator     - OBS Studio, v4l2loopback, GStreamer, NV Broadcast"
                 echo "                           full        - Complete public suite: Workstation + Dev + Gaming + Creator (default)"
-                echo "                           personal    - Author's bespoke workflow: Full + Postgres 18, ccache, kkfetch"
+                echo "                           personal    - Author's bespoke workflow: Full + Postgres 18, ccache, kkfetch, cliamp, ani-cli"
                 echo "  --dev-type=GENRE       Choose developer genre for dev profile (comma-separated):"
                 echo "                           systems     - C, C++, Rust, CMake, Meson, GDB, Valgrind, Hyperfine"
                 echo "                           web         - Node.js, PNPM/Yarn, Python 3, Docker, jq"
@@ -1765,6 +1765,64 @@ EOF
             else
                 info "Skipping NVIDIA Broadcast installation"
             fi
+        fi
+    fi
+
+    # Personal Profile Media Suite: Cliamp (Retro TUI Music Player) & ani-cli (Anime Streaming CLI)
+    if [[ "$PROFILE" == "personal" ]]; then
+        log "Setting up personal media tools (cliamp & ani-cli)..."
+        if ! $DRY_RUN; then
+            mkdir -p "$HOME/.local/bin" "$HOME/.config/cliamp" "$HOME/.config/yt-dlp"
+            run_sudo dnf install -y --skip-unavailable mpv 2>/dev/null || true
+
+            # 1. yt-dlp & python dependencies for cliamp
+            if ! command -v yt-dlp &>/dev/null; then
+                log "Installing yt-dlp standalone binary..."
+                if curl -fsSL https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o "$HOME/.local/bin/yt-dlp" 2>/dev/null; then
+                    [[ -f "$HOME/.local/bin/yt-dlp" ]] && chmod +x "$HOME/.local/bin/yt-dlp"
+                fi
+            fi
+            cat > "$HOME/.config/yt-dlp/config" <<'YTDLP_CONF'
+--js-runtimes node
+YTDLP_CONF
+
+            # Python SecretStorage for GNOME Keyring cookie decryption
+            if command -v python3 &>/dev/null; then
+                python3 -m pip install --user secretstorage cryptography jeepney 2>/dev/null || true
+            fi
+
+            # 2. cliamp
+            if ! command -v cliamp &>/dev/null; then
+                log "Installing cliamp retro music player..."
+                local cliamp_installer
+                cliamp_installer=$(mktemp /tmp/cliamp-install-XXXXXX.sh)
+                if curl -fsSL https://raw.githubusercontent.com/bjarneo/cliamp/HEAD/install.sh -o "$cliamp_installer" 2>/dev/null; then
+                    sh "$cliamp_installer" >/dev/null 2>&1 || true
+                    rm -f "$cliamp_installer"
+                fi
+            fi
+
+            # Deploy cliamp YouTube Music configuration
+            backup_file "$HOME/.config/cliamp/config.toml"
+            cat > "$HOME/.config/cliamp/config.toml" <<'CLIAMP_CONF'
+provider = "ytmusic"
+theme = ""
+
+[ytmusic]
+cookies_from = "chrome+gnomekeyring"
+CLIAMP_CONF
+            success "cliamp installed and configured with YouTube Music"
+
+            # 3. ani-cli (with hianime provider patch)
+            log "Installing ani-cli (patched provider)..."
+            if curl -fsSL https://raw.githubusercontent.com/pystardust/ani-cli/refs/pull/1897/head/ani-cli -o "$HOME/.local/bin/ani-cli" 2>/dev/null; then
+                [[ -f "$HOME/.local/bin/ani-cli" ]] && chmod +x "$HOME/.local/bin/ani-cli"
+                success "ani-cli installed with working provider to ~/.local/bin/ani-cli"
+            else
+                warn "Failed to download patched ani-cli"
+            fi
+        else
+            dry "Install cliamp, configure YouTube Music in ~/.config/cliamp/config.toml, and deploy patched ani-cli to ~/.local/bin/ani-cli"
         fi
     fi
 

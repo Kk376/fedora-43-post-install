@@ -228,7 +228,18 @@ run_mock_setup_packages() {
             builtin command "$@"
         }
         rpm() { return 1; }
-        curl() { return 0; }
+        curl() {
+            local prev=""
+            for arg in "$@"; do
+                if [[ "$prev" == "-o" ]]; then
+                    mkdir -p "$(dirname "$arg")" 2>/dev/null || true
+                    touch "$arg" 2>/dev/null || true
+                    return 0
+                fi
+                prev="$arg"
+            done
+            return 0
+        }
         git() { return 0; }
         lspci() { return 0; }
         github_download() {
@@ -667,6 +678,42 @@ for full_only_pkg in "dpkg-dev" "libX11-devel" "libxkbcommon-x11-devel" "libxcb-
         fail "$full_only_pkg is missing full profile gate in setup_dev"
     fi
 done
+
+# ==============================================================================
+# Suite 10: Personal Profile Media Suite (cliamp & ani-cli)
+# ==============================================================================
+echo ""
+echo -e "${BLUE}--- Suite 10: Personal Profile Media Suite ---${NC}"
+
+# 10.1: Verify setup_packages contains personal profile gate for cliamp & ani-cli
+if sed -n '/setup_packages()/,/^}/p' "$SETUP_SCRIPT" | grep -q '\[\[ "$PROFILE" == "personal" \]\]'; then
+    pass "setup_packages() contains profile gate for personal profile media tools"
+else
+    fail "setup_packages() missing personal profile gate"
+fi
+
+# 10.2: Verify cliamp YouTube Music configuration is deployed in personal profile
+setup_pkg_body=$(sed -n '/setup_packages()/,/^}/p' "$SETUP_SCRIPT")
+if echo "$setup_pkg_body" | grep -q "cookies_from = \"chrome+gnomekeyring\""; then
+    pass "setup_packages() configures cliamp with YouTube Music chrome+gnomekeyring cookies"
+else
+    fail "setup_packages() missing cliamp YouTube Music configuration"
+fi
+
+# 10.3: Verify patched ani-cli provider is deployed in personal profile
+if echo "$setup_pkg_body" | grep -q "raw.githubusercontent.com/pystardust/ani-cli/refs/pull/1897/head/ani-cli"; then
+    pass "setup_packages() deploys patched ani-cli to ~/.local/bin/ani-cli"
+else
+    fail "setup_packages() missing patched ani-cli deployment"
+fi
+
+# 10.4: Verify dry-run personal profile logs media tools setup
+dry_personal_output=$(bash "$SETUP_SCRIPT" --dry-run -f --profile=personal 2>&1 || true)
+if echo "$dry_personal_output" | grep -q "Install cliamp, configure YouTube Music"; then
+    pass "Dry-run personal profile logs cliamp and ani-cli setup"
+else
+    fail "Dry-run personal profile missing media tools log"
+fi
 
 echo ""
 echo "================================================================"
