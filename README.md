@@ -28,29 +28,7 @@ Built from years of actual Fedora usage, covering the things I find myself setti
 - **Instant Game Exit (UMU Container Lag Fix):** Pre-configures `"disableUMU": true` to eliminate the 4-7 second hang on closing Proton games.
 - **MangoHud Scaling & HUD Tuning:** Default 32px font size, subtle transparency, and rounded corners for high-DPI displays, automatically synchronized across native and Flatpak Heroic installs.
 - **Mutter Hang Watchdog Fix:** Sets `org.gnome.mutter check-alive-timeout 0` to permanently eliminate false-positive "Window is not responding" freeze popups during Wine/Proton shader compilation.
-
-## What's New in v5.5.5
-
-- **Interactive Profile Menu:** Running `./setup.sh` directly without arguments presents an interactive menu to choose your setup profile (`minimal`, `workstation`, `gaming`, `creator`, `dev`, `full`, or `personal`). If `dev` is selected, an interactive submenu lets you select developer genres (`systems`, `web`, `android`, `ai`, or `all`).
-- **Personal Profile Media Suite:** Added `cliamp` (retro TUI music player with zero-OAuth YouTube Music integration via Chrome keyring) and `ani-cli` (anime streaming CLI with patched provider) to the author's bespoke `personal` profile.
-- **Purge Mission Center & Hardware Freeze Elimination:** Completely eradicated `io.missioncenter.MissionCenter` (which triggers PCIe bus stalls and GPU sleep lockups on MUXless hybrid GPU laptops). Replaced with GNOME Extension Manager (`com.mattjakeman.ExtensionManager`).
-- **Dev Profile Genres (`--dev-type`):** Modularized the `dev` profile into focused developer genres:
-  - `systems`: C, C++, Rust toolchain, CMake, Meson, Ninja, GDB, Valgrind, Hyperfine.
-  - `web`: Node.js, Corepack (pnpm/yarn), Python 3, Docker, jq.
-  - `android`: `android-tools` (ADB/Fastboot), Scrcpy, Java JDK/Devel, Maven, Android Studio (Flathub), KVM acceleration.
-  - `ai`: Python 3 Devel, virtualenv, Ruff, and **Hardware-Gated NVIDIA CUDA Failsafe** (hardware-probed via `lspci`; safely skipped on AMD/Intel systems).
-  - `all`: Comprehensive developer stack (default).
-- **Personal Profile Isolation (`--profile=personal`):** Separated author's bespoke workflow (PostgreSQL 18 server daemon, pgAdmin 4, 50GB ccache, dpkg-dev, X11 dev headers, kkfetch, cliamp, ani-cli) from the public `full` profile.
-- **Orthogonal Profile Matrix:**
-  - `minimal` (7 steps): Base optimizations, DNS, fonts, shell, browser/codecs, GPU drivers.
-  - `workstation` (11 steps): Productivity desktop, Flatpaks, GPU drivers (no Steam, no compilers, no KVM).
-  - `creator` (11 steps): OBS Studio, `akmod-v4l2loopback` (virtual camera), GStreamer, NV Broadcast, Flatpaks, GPU drivers.
-  - `gaming` (11 steps): Steam, MangoHud, GameMode (`gamemode`), Vesktop, Heroic Games Launcher, Flatpaks, GPU drivers.
-  - `dev` (16 steps): Full dev environment + genre selection, Docker, KVM, Flatpaks (Android Studio), Code Editor.
-  - `full` (17 steps): Complete public power-user superset (workstation + dev + gaming + creator).
-  - `personal` (17 steps): Full suite + author's bespoke PostgreSQL 18, 50GB ccache, kkfetch, dpkg-dev, cliamp, ani-cli.
-- **Fish Shell & Autosuggestion Polish:** First-class Fish shell integration alongside ZSH and Bash in `setup_shell`, featuring tuned `#828bb8` autosuggestion contrast and Starship prompt.
-- **Discovered Host Essentials:** Integrated `gnome-shell-extension-appindicator` for GNOME tray icons, `gamemode` for gaming, `akmod-v4l2loopback` for creators, and `plocate`, `tree`, `compsize` in CLI essentials.
+- **ProtonPlus Eradication:** Purged redundant `com.vysp3r.ProtonPlus` Flatpak in favor of Heroic's native zero-overhead Wine/Proton manager.
 
 See [CHANGELOG.md](CHANGELOG.md) for the full history.
 
