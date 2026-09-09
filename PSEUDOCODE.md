@@ -315,7 +315,9 @@ flowchart TD
     InstallAllPkgs["Install all packages via DNF (--skip-unavailable)"] --> UnlockSteamH264{"Gaming profile active?"}
     
     UnlockSteamH264 -- Yes --> UnlockH264["Execute Steam H.264 codec unlock (steam://unlockh264/)"]
-    UnlockH264 --> DeployMangoHudConf["Deploy ~/.config/MangoHud/MangoHud.conf<br/>(GPU/CPU temps, FPS, frame timing, clean 3-column table)"] --> PromptVesktop
+    UnlockH264 --> DeployMangoHudConf["Deploy ~/.config/MangoHud/MangoHud.conf<br/>(32px scaled HUD, GPU/CPU temps, FPS, frame timing, 3-col table)"] --> PromptHeroic{"Heroic Games Launcher (Epic, GOG, Sideloaded):<br/>Install? [Y/n]"}
+    PromptHeroic -- Yes --> InstallHeroic["Download Heroic RPM from GitHub Releases, install via DNF,<br/>pre-create Prefixes, pre-seed config with disableUMU=true"] --> PromptVesktop
+    PromptHeroic -- No --> PromptVesktop
     UnlockSteamH264 -- No --> PromptVesktop
     
     PromptVesktop{"Vesktop (Discord Client with Wayland Screen Audio):<br/>Install? [Y/n]"}

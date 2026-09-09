@@ -190,6 +190,7 @@ run_mock_setup_packages() {
                     case "$1" in
                         -y|--skip-unavailable) shift ;;
                         /tmp/vesktop.rpm) touch "$sandbox/.vesktop_installed"; shift ;;
+                        /tmp/heroic.rpm) touch "$sandbox/.heroic_installed"; shift ;;
                         *) echo -n "$1 " >> "$sandbox/.dnf_pkgs"; shift ;;
                     esac
                 done
@@ -223,6 +224,8 @@ run_mock_setup_packages() {
             if [[ "$1" == "-v" && "$2" == "mangohud" ]]; then
                 return 0
             elif [[ "$1" == "-v" && "$2" == "vesktop" ]]; then
+                return 1
+            elif [[ "$1" == "-v" && "$2" == "heroic" ]]; then
                 return 1
             fi
             builtin command "$@"
@@ -263,6 +266,8 @@ run_mock_setup_packages() {
         echo "STEAM_UNLOCKED:$([[ -f "$sandbox/.steam_unlocked" ]] && echo true || echo false)"
         echo "MANGOHUD_CONFIGURED:$([[ -f "$sandbox/.config/MangoHud/MangoHud.conf" ]] && echo true || echo false)"
         echo "VESKTOP_INSTALLED:$([[ -f "$sandbox/.vesktop_installed" ]] && echo true || echo false)"
+        echo "HEROIC_INSTALLED:$([[ -f "$sandbox/.heroic_installed" ]] && echo true || echo false)"
+        echo "HEROIC_PREFIX_CREATED:$([[ -d "$sandbox/Games/Heroic/Prefixes/shared" ]] && echo true || echo false)"
     ' _ "$target_profile" "$sandbox" "$SETUP_SCRIPT"
 
     rm -rf "$sandbox"
@@ -310,6 +315,20 @@ for prof in "gaming" "full" "personal"; do
     else
         fail "Profile '$prof': Vesktop was NOT installed"
     fi
+
+    # 6. Heroic Games Launcher installation & prefix setup
+    heroic_inst=$(echo "$output" | grep "^HEROIC_INSTALLED:" | cut -d: -f2)
+    heroic_prefix=$(echo "$output" | grep "^HEROIC_PREFIX_CREATED:" | cut -d: -f2)
+    if [[ "$heroic_inst" == "true" ]]; then
+        pass "Profile '$prof': Heroic Games Launcher RPM download & install executed"
+    else
+        fail "Profile '$prof': Heroic Games Launcher was NOT installed"
+    fi
+    if [[ "$heroic_prefix" == "true" ]]; then
+        pass "Profile '$prof': Heroic prefix directory initialized"
+    else
+        fail "Profile '$prof': Heroic prefix directory was NOT initialized"
+    fi
 done
 
 # Test workstation and creator profiles (must NOT include steam/mangohud/gamemode or their configs, but MUST include eza and vesktop)
@@ -348,6 +367,13 @@ for non_game_prof in "workstation" "creator"; do
         pass "Profile '$non_game_prof': Vesktop RPM download & install executed"
     else
         fail "Profile '$non_game_prof': Vesktop was NOT installed"
+    fi
+
+    non_heroic_inst=$(echo "$output" | grep "^HEROIC_INSTALLED:" | cut -d: -f2)
+    if [[ "$non_heroic_inst" == "false" ]]; then
+        pass "Profile '$non_game_prof': Heroic Games Launcher is NOT installed"
+    else
+        fail "Profile '$non_game_prof': Heroic Games Launcher should NOT be installed"
     fi
 done
 
@@ -415,6 +441,13 @@ if [[ "$dev_vesktop_inst" == "true" ]]; then
     pass "Profile 'dev': Vesktop RPM download & install executed"
 else
     fail "Profile 'dev': Vesktop was NOT installed in dev profile"
+fi
+
+dev_heroic_inst=$(echo "$dev_output" | grep "^HEROIC_INSTALLED:" | cut -d: -f2)
+if [[ "$dev_heroic_inst" == "false" ]]; then
+    pass "Profile 'dev': Heroic Games Launcher is NOT installed"
+else
+    fail "Profile 'dev': Heroic Games Launcher should NOT be installed in dev profile"
 fi
 
 # ==============================================================================
@@ -590,12 +623,19 @@ else
     fail "Dry-run gaming profile missing Vesktop download log"
 fi
 
+if echo "$dry_output" | grep -q "Download and install Heroic Games Launcher RPM"; then
+    pass "Dry-run gaming profile logs Heroic Games Launcher download action"
+else
+    fail "Dry-run gaming profile missing Heroic download log"
+fi
+
 dry_dev_output=$(bash "$SETUP_SCRIPT" --dry-run -f --profile=dev 2>&1)
 if ! echo "$dry_dev_output" | grep -q "Unlock Steam H264 codec" && \
-   ! echo "$dry_dev_output" | grep -q "Create MangoHud.conf"; then
-    pass "Dry-run dev profile does NOT log Steam H264 unlock or MangoHud config"
+   ! echo "$dry_dev_output" | grep -q "Create MangoHud.conf" && \
+   ! echo "$dry_dev_output" | grep -q "Heroic Games Launcher"; then
+    pass "Dry-run dev profile does NOT log gaming actions or Heroic Games Launcher"
 else
-    fail "Dry-run dev profile unexpectedly logged gaming actions"
+    fail "Dry-run dev profile unexpectedly logged gaming actions or Heroic"
 fi
 
 if echo "$dry_dev_output" | grep -q "Download and install Vesktop RPM"; then

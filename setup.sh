@@ -1,7 +1,7 @@
 #!/bin/bash
 # Fedora 44 Post-Install Setup Script
 # Author: Kushagra Kumar
-# Version: 5.5.5
+# Version: 5.5.6
 
 # ==============================================================================
 # Configuration & Flags
@@ -9,7 +9,7 @@
 : "${DRY_RUN:=false}"
 : "${BACKUP_DIR:=$HOME/.config/fedora-setup-backups/$(date +%Y%m%d_%H%M%S)}"
 : "${LOG_FILE:=/tmp/fedora-setup-$(date +%Y%m%d_%H%M%S).log}"
-: "${SCRIPT_VERSION:=5.5.5}"
+: "${SCRIPT_VERSION:=5.5.6}"
 : "${PROFILE:=full}"
 : "${DEV_TYPE:=all}"
 PROFILE_SPECIFIED=false
@@ -69,7 +69,7 @@ parse_args() {
                 echo "  --profile=PROFILE      Choose setup profile (if omitted, interactive menu is shown):"
                 echo "                           minimal     - DNF, DNS, fonts, shell, browser/codecs"
                 echo "                           dev         - Developer stack, Docker, Antigravity, KVM"
-                echo "                           gaming      - Multimedia, Steam, MangoHud, GameMode, Flatpaks"
+                echo "                           gaming      - Multimedia, Steam, Heroic, MangoHud, GameMode, Flatpaks"
                 echo "                           workstation - Productive desktop, multimedia, Flatpaks, GPU drivers"
                 echo "                           creator     - OBS Studio, v4l2loopback, GStreamer, NV Broadcast"
                 echo "                           full        - Complete public suite: Workstation + Dev + Gaming + Creator (default)"
@@ -441,7 +441,7 @@ select_profile_menu() {
     echo -e "${GREEN}========================================${NC}"
     echo "  1) minimal     - DNF, DNS, fonts, shell, browser/codecs (7 steps)"
     echo "  2) workstation - Minimal + power, GNOME, productivity, Flatpaks (11 steps)"
-    echo "  3) gaming      - Minimal + power, GNOME, Steam, MangoHud, GameMode (11 steps)"
+    echo "  3) gaming      - Minimal + power, GNOME, Steam, Heroic, MangoHud, GameMode (11 steps)"
     echo "  4) creator     - Minimal + power, GNOME, OBS Studio, loopback, NV Broadcast (11 steps)"
     echo "  5) dev         - Developer stack, Docker, Antigravity, KVM/QEMU (16 steps)"
     echo "  6) full        - Complete public suite: Workstation + Dev + Gaming + Creator (default) (17 steps)"
@@ -544,7 +544,7 @@ check_disk_space() {
 # Show installed versions
 show_versions() {
     log "Checking installed versions..."
-    local packages=("zsh" "brave-browser" "vesktop" "zed" "codium" "agy" "code" "docker" "tlp" "steam" "ffmpeg")
+    local packages=("zsh" "brave-browser" "vesktop" "heroic" "zed" "codium" "agy" "code" "docker" "tlp" "steam" "ffmpeg")
     for pkg in "${packages[@]}"; do
         if rpm -q "$pkg" &>/dev/null; then
             echo "  ✅ $pkg: $(rpm -q --queryformat '%{VERSION}' "$pkg" 2>/dev/null)"
@@ -1703,6 +1703,16 @@ GTK_CSS
         dry "Deploy transparent titlebar CSS to ~/.config/gtk-3.0/gtk.css and ~/.config/gtk-4.0/gtk.css"
     fi
 
+    # Silence the "Window is not responding" freeze dialog during Wine/Proton shader compilation
+    if command -v gsettings &>/dev/null; then
+        if ! $DRY_RUN; then
+            gsettings set org.gnome.mutter check-alive-timeout 0 2>/dev/null || true
+            success "GNOME Mutter check-alive-timeout set to 0 (silences Proton shader compilation freeze dialogs)"
+        else
+            dry "gsettings set org.gnome.mutter check-alive-timeout 0"
+        fi
+    fi
+
     step_complete "GNOME tools and GSConnect configured"
 }
 
@@ -1774,13 +1784,108 @@ frametime=1
 frame_timing=1
 hud_no_margin
 table_columns=3
-background_alpha=0.3
-font_size=20
+background_alpha=0.4
+font_size=32
+round_corners=8
 EOF
                 success "MangoHud config created"
+                if [[ -d "$HOME/.var/app/com.heroicgameslauncher.hgl" ]]; then
+                    mkdir -p "$HOME/.var/app/com.heroicgameslauncher.hgl/config/MangoHud"
+                    cp -p "$HOME/.config/MangoHud/MangoHud.conf" "$HOME/.var/app/com.heroicgameslauncher.hgl/config/MangoHud/MangoHud.conf" 2>/dev/null || true
+                fi
             else
                 dry "Create ~/.config/MangoHud/MangoHud.conf"
             fi
+        fi
+
+        # Heroic Games Launcher (Epic, GOG & Sideloaded Games)
+        echo ""
+        info "Heroic Games Launcher (Epic, GOG & Amazon Games):"
+        info "  • Native launcher with Proton/Wine compatibility, MangoHud integration, and offline library support."
+        info "  • Recommendation: Install if you play games from Epic Games, GOG, or sideloaded PC games. Otherwise skip."
+        if confirm "Install Heroic Games Launcher?" "Y"; then
+            if ! $DRY_RUN; then
+                if ! command -v heroic &>/dev/null && ! rpm -q heroic &>/dev/null; then
+                    local heroic_rpm="/tmp/heroic.rpm"
+                    local heroic_arch
+                    heroic_arch=$(uname -m)
+                    local heroic_fallback="https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v2.22.1/Heroic-2.22.1-linux-${heroic_arch}.rpm"
+                    log "Downloading Heroic Games Launcher RPM..."
+                    if github_download "Heroic-Games-Launcher/HeroicGamesLauncher" "Heroic-.*-linux-${heroic_arch}\.rpm" "$heroic_rpm" "$heroic_fallback"; then
+                        if run_sudo dnf install -y "$heroic_rpm" 2>/dev/null; then
+                            success "Heroic Games Launcher installed"
+                        else
+                            warn "Heroic Games Launcher RPM install failed"
+                        fi
+                        run rm -f "$heroic_rpm"
+                    else
+                        warn "Could not download Heroic Games Launcher RPM"
+                        info "Manual install: https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases"
+                    fi
+                else
+                    info "Heroic Games Launcher is already installed"
+                fi
+
+                # Pre-create standard game prefix directory tree to prevent file picker errors on initial 'Add Game'
+                mkdir -p "$HOME/Games/Heroic/Prefixes/shared"
+
+                # Pre-seed or update optimized Heroic configuration (disable UMU container exit delay, enable MangoHud)
+                mkdir -p "$HOME/.config/heroic"
+                local heroic_config="$HOME/.config/heroic/config.json"
+                if [[ ! -f "$heroic_config" ]]; then
+                    local prime_val="false"
+                    if lspci 2>/dev/null | grep -Ei 'VGA|3D|Display' | grep -qi nvidia; then
+                        prime_val="true"
+                    fi
+                    cat > "$heroic_config" <<HEROIC_EOF
+  {
+    "defaultSettings": {
+      "autoInstallDxvk": true,
+      "autoInstallVkd3d": true,
+      "autoInstallDxvkNvapi": true,
+      "defaultInstallPath": "$HOME/Games/Heroic",
+      "defaultSteamPath": "$HOME/.steam/steam",
+      "defaultWinePrefix": "$HOME/Games/Heroic/Prefixes",
+      "defaultWinePrefixDir": "$HOME/Games/Heroic/Prefixes",
+      "winePrefix": "$HOME/Games/Heroic/Prefixes/shared",
+      "disableUMU": true,
+      "showMangohud": true,
+      "useGameMode": true,
+      "enableEsync": true,
+      "enableFsync": true,
+      "nvidiaPrime": $prime_val
+    },
+    "version": "v0"
+  }
+HEROIC_EOF
+                    success "Optimized Heroic config initialized (disableUMU=true, MangoHud=true, Prefixes pre-created)"
+                else
+                    if command -v jq &>/dev/null; then
+                        local updated_cfg
+                        updated_cfg=$(jq '.defaultSettings.disableUMU = true | .defaultSettings.showMangohud = true' "$heroic_config" 2>/dev/null || true)
+                        if [[ -n "$updated_cfg" ]]; then
+                            echo "$updated_cfg" > "$heroic_config"
+                            success "Updated Heroic config (disableUMU=true, MangoHud=true)"
+                        fi
+                    fi
+                fi
+
+                # If Flatpak Heroic config exists, sync disableUMU and MangoHud
+                local flatpak_heroic_config="$HOME/.var/app/com.heroicgameslauncher.hgl/config/heroic/config.json"
+                if [[ -f "$flatpak_heroic_config" ]] && command -v jq &>/dev/null; then
+                    local updated_fp_cfg
+                    updated_fp_cfg=$(jq '.defaultSettings.disableUMU = true | .defaultSettings.showMangohud = true' "$flatpak_heroic_config" 2>/dev/null || true)
+                    if [[ -n "$updated_fp_cfg" ]]; then
+                        echo "$updated_fp_cfg" > "$flatpak_heroic_config"
+                    fi
+                fi
+            else
+                dry "Download and install Heroic Games Launcher RPM from GitHub Releases"
+                dry "Create directory $HOME/Games/Heroic/Prefixes/shared"
+                dry "Configure ~/.config/heroic/config.json with disableUMU=true and MangoHud=true"
+            fi
+        else
+            info "Skipping Heroic Games Launcher installation"
         fi
     fi
 

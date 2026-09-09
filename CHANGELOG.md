@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 Follows semantic versioning: MAJOR.MINOR.PATCH
 
+## [v5.5.6] – 2026-09-09
+
+### Added
+
+- **Heroic Games Launcher (Native RPM)**: Integrated official GitHub release RPM download and installation of Heroic Games Launcher into gaming profiles (`gaming`, `full`, `personal`).
+- **Wine Prefix Initialization**: Pre-creates standard wine prefix directories (`$HOME/Games/Heroic/Prefixes/shared`) during setup to eliminate file picker errors on initial game addition.
+- **Heroic & UMU Optimization**: Pre-seeds and updates Heroic configuration with `"disableUMU": true` (eliminating container teardown delay on game exit), `"showMangohud": true`, and auto-detects NVIDIA hybrid GPUs for `"nvidiaPrime": true`.
+- **MangoHud Scaling & Sync**: Configured MangoHud overlay with `font_size=32`, `background_alpha=0.4`, and `round_corners=8`, with automated configuration synchronization to Flatpak Heroic environments.
+- **GNOME Mutter Hang Watchdog Disable**: Configured `org.gnome.mutter check-alive-timeout 0` in GNOME setup to prevent false-positive "Window is not responding" freeze dialogs during initial Wine/Proton shader compilation pauses.
+
 ## [v5.5.5] – 2026-09-07
 
 ### Added
