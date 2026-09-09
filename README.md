@@ -22,11 +22,13 @@ Built from years of actual Fedora usage, covering the things I find myself setti
 
 ---
 
-## What's New in v5.5.6
+## What's New in v5.5.7
 
+- **Full HEVC (H.265) & E-AC3/AC3 Codec Unlocking:** Replaces Fedora's stripped `ffmpeg-free` / `libavcodec-free` stack with full RPM Fusion `ffmpeg-libs` (resolving VLC *"Codec not supported: hevc / eac3"* errors).
+- **Freeworld Media & Hardware Acceleration:** Integrates `gstreamer1-plugins-bad-freeworld` (pulling in `libde265`), `gstreamer1-plugins-ugly`, `gstreamer1-vaapi`, and `mesa-va-drivers-freeworld` for full hardware-accelerated video decode on AMD Radeon GPUs.
 - **Heroic Games Launcher (Native RPM):** Seamless Epic Games, GOG, and sideloaded PC gaming with automatic GitHub release RPM installation.
-- **Instant Game Exit (UMU Container Lag Fix):** Pre-configures `"disableUMU": true` to eliminate the 4-7 second hang on closing Proton games.
-- **MangoHud Scaling & HUD Tuning:** Default 32px font size, subtle transparency, and rounded corners for high-DPI displays, automatically synchronized across native and Flatpak Heroic installs.
+- **Instant Game Exit (UMU Lag Fix):** Pre-configures `"disableUMU": true` to eliminate the 4-7 second hang on closing Proton games.
+- **MangoHud Scaling & HUD Tuning:** Default 32px font size, subtle transparency, and rounded corners for high-DPI displays.
 - **Mutter Hang Watchdog Fix:** Sets `org.gnome.mutter check-alive-timeout 0` to permanently eliminate false-positive "Window is not responding" freeze popups during Wine/Proton shader compilation.
 - **ProtonPlus Eradication:** Purged redundant `com.vysp3r.ProtonPlus` Flatpak in favor of Heroic's native zero-overhead Wine/Proton manager.
 

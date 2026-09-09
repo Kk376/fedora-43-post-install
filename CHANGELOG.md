@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 Follows semantic versioning: MAJOR.MINOR.PATCH
 
+## [v5.5.7] – 2026-09-09
+
+### Added
+
+- **Full Freeworld HEVC & E-AC3 Codec Suite**: Explicitly installs `gstreamer1-plugins-bad-freeworld` (providing `libde265` and `svt-hevc`), `gstreamer1-plugins-ugly`, `gstreamer1-vaapi`, and full RPM Fusion `ffmpeg-libs`, solving VLC *"Codec not supported: hevc / eac3"* errors.
+- **AMD Hardware VA-API Acceleration**: Robust installation of `mesa-va-drivers-freeworld` across AMD GPU setups for full hardware-accelerated H.264/H.265 video decode.
+
 ## [v5.5.6] – 2026-09-09
 
 ### Added

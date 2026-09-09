@@ -1,7 +1,7 @@
 #!/bin/bash
 # Fedora 44 Post-Install Setup Script
 # Author: Kushagra Kumar
-# Version: 5.5.6
+# Version: 5.5.7
 
 # ==============================================================================
 # Configuration & Flags
@@ -9,7 +9,7 @@
 : "${DRY_RUN:=false}"
 : "${BACKUP_DIR:=$HOME/.config/fedora-setup-backups/$(date +%Y%m%d_%H%M%S)}"
 : "${LOG_FILE:=/tmp/fedora-setup-$(date +%Y%m%d_%H%M%S).log}"
-: "${SCRIPT_VERSION:=5.5.6}"
+: "${SCRIPT_VERSION:=5.5.7}"
 : "${PROFILE:=full}"
 : "${DEV_TYPE:=all}"
 PROFILE_SPECIFIED=false
@@ -1349,8 +1349,14 @@ setup_browser_multimedia() {
     run_sudo dnf install -y brave-browser mozilla-openh264
 
     run_sudo dnf swap -y ffmpeg-free ffmpeg --allowerasing
-    run_sudo dnf group upgrade -y multimedia --setopt=install_weak_deps=False --exclude=PackageKit-gstreamer-plugin
-    run_sudo dnf group upgrade -y sound-and-video
+    run_sudo dnf install -y \
+        gstreamer1-plugins-bad-freeworld \
+        gstreamer1-plugins-ugly \
+        gstreamer1-vaapi \
+        mesa-va-drivers-freeworld \
+        --allowerasing 2>/dev/null || true
+    run_sudo dnf group upgrade -y multimedia --setopt=install_weak_deps=False --exclude=PackageKit-gstreamer-plugin 2>/dev/null || true
+    run_sudo dnf group upgrade -y sound-and-video 2>/dev/null || true
 
     # WirePlumber Bluetooth High-Definition Audio (prioritize AAC, SBC-XQ, LDAC)
     log "Configuring WirePlumber Bluetooth audio optimization..."
@@ -1450,11 +1456,11 @@ setup_drivers() {
         run_sudo dnf install -y intel-media-driver
     fi
 
-    # Swap standard Mesa drivers with RPM Fusion freeworld builds to unlock patent-encumbered H.264/H.265/VC-1 VA-API codecs
+    # Install RPM Fusion freeworld Mesa VA-API driver to unlock patent-encumbered H.264/H.265/VC-1 hardware acceleration
     if [[ -n "$GPU_AMD" ]]; then
-        log "AMD GPU Detected: Swapping for freeworld drivers..."
-        run_sudo dnf swap -y mesa-va-drivers mesa-va-drivers-freeworld
-        run_sudo dnf swap -y mesa-vdpau-drivers mesa-vdpau-drivers-freeworld
+        log "AMD GPU Detected: Ensuring freeworld hardware VA-API drivers..."
+        run_sudo dnf install -y mesa-va-drivers-freeworld --allowerasing 2>/dev/null || \
+            run_sudo dnf swap -y mesa-va-drivers mesa-va-drivers-freeworld --allowerasing 2>/dev/null || true
     fi
 
     if [[ -n "$GPU_NVIDIA" ]]; then
