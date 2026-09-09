@@ -107,7 +107,7 @@ You don't need a heavy developer workstation if you just want to browse the web 
 
 ### 🎮 3. `gaming` — The Linux Gamer (11 steps)
 * **Who it's for:** Gamers playing on Steam, Discord users, and media lovers.
-* **What you get:** Everything in Minimal + Power tuning, GNOME tools, Steam with H.264 video unlock, MangoHud FPS & temperature overlay (with 32px HUD scaling), GameMode, Vesktop (Discord with screen audio), Heroic Games Launcher (native RPM for Epic/GOG with UMU exit lag fix), and Flatpaks (ProtonPlus).
+* **What you get:** Everything in Minimal + Power tuning, GNOME tools, Steam with H.264 video unlock, MangoHud FPS & temperature overlay (with 32px HUD scaling), GameMode, Vesktop (Discord with screen audio), Heroic Games Launcher (native RPM for Epic/GOG with UMU exit lag fix), and Flatpaks.
 
 ### 🏢 4. `workstation` — The Daily Productivity Desktop (11 steps)
 * **Who it's for:** Professional desktop users who want a clean, productive machine without gaming overhead, virtualization clutter, or compilers.
@@ -236,7 +236,7 @@ Here is a simple walkthrough of each room the setup crew visits:
 
 ### 📦 Step 13: Sandboxed Flatpak Apps (`setup_flatpaks`)
 * **The Problem:** Need reliable utilities without polluting system libraries or triggering laptop sleep/GPU lockups.
-* **The Fix:** Installs **LocalSend** (cross-platform AirDrop alternative for local Wi-Fi sharing) and **Extension Manager** (browse and manage GNOME Shell extensions cleanly). On gaming profiles, installs **ProtonPlus** (manage custom Proton-GE gaming engines). *Note: Mission Center was purged in v5.5.0 to eliminate MUXless laptop freeze issues.*
+* **The Fix:** Installs **LocalSend** (cross-platform AirDrop alternative for local Wi-Fi sharing) and **Extension Manager** (browse and manage GNOME Shell extensions cleanly). Redundant managers like ProtonPlus are omitted since Heroic Games Launcher includes a native Wine/Proton manager with zero bloat. *Note: Mission Center was purged in v5.5.0 to eliminate MUXless laptop freeze issues.*
 * **Decision:** Say **YES**.
 
 ---

@@ -45,7 +45,7 @@ Built from years of actual Fedora usage, covering the things I find myself setti
   - `minimal` (7 steps): Base optimizations, DNS, fonts, shell, browser/codecs, GPU drivers.
   - `workstation` (11 steps): Productivity desktop, Flatpaks, GPU drivers (no Steam, no compilers, no KVM).
   - `creator` (11 steps): OBS Studio, `akmod-v4l2loopback` (virtual camera), GStreamer, NV Broadcast, Flatpaks, GPU drivers.
-  - `gaming` (11 steps): Steam, MangoHud, GameMode (`gamemode`), ProtonPlus, Vesktop, Heroic Games Launcher, Flatpaks, GPU drivers.
+  - `gaming` (11 steps): Steam, MangoHud, GameMode (`gamemode`), Vesktop, Heroic Games Launcher, Flatpaks, GPU drivers.
   - `dev` (16 steps): Full dev environment + genre selection, Docker, KVM, Flatpaks (Android Studio), Code Editor.
   - `full` (17 steps): Complete public power-user superset (workstation + dev + gaming + creator).
   - `personal` (17 steps): Full suite + author's bespoke PostgreSQL 18, 50GB ccache, kkfetch, dpkg-dev, cliamp, ani-cli.
@@ -84,7 +84,7 @@ When run interactively without options, `./setup.sh` displays a menu to select y
 | ------------- | :---: | ------------------------------------------------------------------------------------------------------------ |
 | `minimal`     | 7     | DNF config, DNS, fonts, shell (Fish/Zsh + Starship), Brave & codecs, GPU drivers (last)                     |
 | `workstation` | 11    | Minimal + power, GNOME tools & AppIndicator, productivity packages, Flatpaks (Extension Manager), GPU drivers (last) |
-| `gaming`      | 11    | Minimal + power, GNOME tools, gaming packages (Steam, MangoHud, GameMode, Vesktop, Heroic Games Launcher), Flatpaks (ProtonPlus), GPU drivers (last) |
+| `gaming`      | 11    | Minimal + power, GNOME tools, gaming packages (Steam, MangoHud, GameMode, Vesktop, Heroic Games Launcher), Flatpaks, GPU drivers (last) |
 | `creator`     | 11    | Minimal + power, GNOME tools, creator tools (OBS, akmod-v4l2loopback, GStreamer, NV Broadcast), Flatpaks, GPU drivers (last) |
 | `dev`         | 16    | Minimal + power, no-sleep, GNOME tools, dev genre packages (`--dev-type`), Code Editor, Flatpaks (Android Studio), Docker, KVM/QEMU, GPU drivers (last) |
 | `full`        | 17    | Complete public power-user superset: workstation + dev + gaming + creator, COPR packages                     |
@@ -138,7 +138,7 @@ GCC, Clang, LLVM, Java, Node.js, Python, Ruff linter/formatter, PostgreSQL 18, D
 
 ### Gaming
 
-Steam (with H.264 unlock), MangoHud (auto-configured with 32px HUD scaling, alpha transparency, and rounded corners), ProtonPlus, Vesktop, and Heroic Games Launcher (native RPM from GitHub Releases for Epic/GOG/sideloaded games, pre-configured with `disableUMU` to eliminate container exit lag, shared wine prefixes, and NVIDIA Prime offload). Included on `gaming`, `full`, and `personal` profiles.
+Steam (with H.264 unlock), MangoHud (auto-configured with 32px HUD scaling, alpha transparency, and rounded corners), Vesktop, and Heroic Games Launcher (native RPM from GitHub Releases for Epic/GOG/sideloaded games, pre-configured with `disableUMU` to eliminate container exit lag, shared wine prefixes, and NVIDIA Prime offload). Included on `gaming`, `full`, and `personal` profiles.
 
 ### Virtualization
 

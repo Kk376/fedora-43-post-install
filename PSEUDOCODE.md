@@ -109,7 +109,7 @@ flowchart TD
 
     SwitchProfile -- minimal --> P_Min["minimal Profile<br/>(7 Steps: DNF, DNS, Fonts, Shell, Browser/Codecs, Pre-Driver Reboot, Drivers)"]
     SwitchProfile -- dev --> P_Dev["dev Profile<br/>(16 Steps: Minimal + Power, No-Sleep, GNOME, Packages, Dev Genres, Editor, Flatpaks, Docker, KVM, Drivers)"]
-    SwitchProfile -- gaming --> P_Gaming["gaming Profile<br/>(11 Steps: Minimal + Power, GNOME, Packages with Steam/MangoHud/GameMode, Flatpaks with ProtonPlus, Drivers)"]
+    SwitchProfile -- gaming --> P_Gaming["gaming Profile<br/>(11 Steps: Minimal + Power, GNOME, Gaming Packages with Steam/MangoHud/Heroic, Flatpaks, Drivers)"]
     SwitchProfile -- workstation --> P_Work["workstation Profile<br/>(11 Steps: Minimal + Power, GNOME & AppIndicator, Productivity Packages, Flatpaks, Drivers)"]
     SwitchProfile -- creator --> P_Creator["creator Profile<br/>(11 Steps: Minimal + Power, GNOME, Creator Packages with OBS/V4L2/GStreamer, Flatpaks, Drivers)"]
     SwitchProfile -- full --> P_Full["full Profile (Default)<br/>(All 17 Steps: Public Superset of Workstation + Dev + Gaming + Creator + COPR)"]
@@ -397,9 +397,8 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    StartFlatpaks(["Start setup_flatpaks()"]) --> InstallApps["Install sandboxed desktop Flatpaks from Flathub:<br/>- org.localsend.localsend_app (LocalSend)<br/>- com.mattjakeman.ExtensionManager (Extension Manager)<br/>- com.vysp3r.ProtonPlus (ProtonPlus, gaming profiles)"]
-    InstallApps --> ShowProtonPlusInfo["Display ProtonPlus / Proton GE configuration tips"]
-    ShowProtonPlusInfo --> EndFlatpaks(["Mark completed"])
+    StartFlatpaks(["Start setup_flatpaks()"]) --> InstallApps["Install sandboxed desktop Flatpaks from Flathub:<br/>- org.localsend.localsend_app (LocalSend)<br/>- com.mattjakeman.ExtensionManager (Extension Manager)"]
+    InstallApps --> EndFlatpaks(["Mark completed"])
 ```
 
 ---

@@ -2605,18 +2605,8 @@ VSCODE_SETTINGS
 setup_flatpaks() {
     log "Installing Flatpaks..."
     local flatpaks=(org.localsend.localsend_app com.mattjakeman.ExtensionManager)
-    if is_gaming_profile; then
-        flatpaks+=(com.vysp3r.ProtonPlus)
-    fi
 
     run flatpak install -y flathub "${flatpaks[@]}" 2>/dev/null || true
-
-    if is_gaming_profile; then
-        info "ProtonPlus installed - Use for Proton GE:"
-        info "  • Only use if a game has issues with default Proton"
-        info "  • Install latest Proton GE version from ProtonPlus"
-        info "  • Set per-game in Steam: Properties → Compatibility"
-    fi
 
     step_complete "Flatpaks installed"
 }

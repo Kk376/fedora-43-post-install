@@ -14,6 +14,10 @@ Follows semantic versioning: MAJOR.MINOR.PATCH
 - **MangoHud Scaling & Sync**: Configured MangoHud overlay with `font_size=32`, `background_alpha=0.4`, and `round_corners=8`, with automated configuration synchronization to Flatpak Heroic environments.
 - **GNOME Mutter Hang Watchdog Disable**: Configured `org.gnome.mutter check-alive-timeout 0` in GNOME setup to prevent false-positive "Window is not responding" freeze dialogs during initial Wine/Proton shader compilation pauses.
 
+### Removed
+
+- **ProtonPlus Flatpak**: Removed `com.vysp3r.ProtonPlus` from `setup_flatpaks()`. Heroic Games Launcher includes a native, built-in Wine & Proton Manager (supporting Wine-GE, GE-Proton, CachyOS Proton, DXVK, and VKD3D directly with zero extra dependencies), rendering external compatibility managers redundant.
+
 ## [v5.5.5] – 2026-09-07
 
 ### Added
